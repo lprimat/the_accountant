@@ -65,6 +65,7 @@ class Joueur {
 	Position pos;
 	Enemy target;
 	int nbShot;
+	static final int MOVE_RANGE = 1000; 
 	
 	public Joueur(int x, int y) {
 		this.pos = new Position(x, y);
@@ -80,6 +81,33 @@ class Joueur {
 			target.getDamage(dps);
 			this.nbShot++;
 		}
+	}
+
+	//TODO REFACTOR !!!
+	public void move(Position destination) {
+		Position curPos = this.pos;
+		double nextPosX = 0;
+		double nextPosY = 0;
+		//if enemy is too close from target, new position will be at target
+		if (Utils.getDist(curPos, destination) <= MOVE_RANGE) {
+			nextPosX = destination.x;
+			nextPosY = destination.y;
+		} else {
+			if (destination.x == curPos.x) {
+				nextPosX = curPos.x;
+				nextPosY = curPos.y > destination.y ? curPos.y - MOVE_RANGE : curPos.y + MOVE_RANGE;
+			} else {
+				double posDivision = (double) (destination.y - curPos.y) / (double) (destination.x - curPos.x);
+				double constant = MOVE_RANGE / (Math.sqrt(1 + Math.pow(posDivision, 2)));
+				nextPosX = (int) (curPos.x + constant);
+				if (Math.abs(curPos.x - destination.x) < Math.abs(nextPosX - destination.x)) {
+					nextPosX = (curPos.x - constant);
+				}
+				nextPosY = ((nextPosX - curPos.x) * posDivision + curPos.y);
+			}
+		}
+		this.pos.x = (int) nextPosX;
+		this.pos.y = (int) nextPosY;
 	}
 }
 
@@ -137,8 +165,8 @@ class Enemy {
 		Position curPos = this.pos;
 		double nextPosX = 0;
 		double nextPosY = 0;
-		//if enemy is too close from target, new posisition will be at target
-		if (distanceFormTarget <= 500) {
+		//if enemy is too close from target, new position will be at target
+		if (distanceFormTarget <= MOVE_RANGE) {
 			nextPosX = targetPos.x;
 			nextPosY = targetPos.y;
 		} else {
@@ -172,6 +200,7 @@ class Game {
 	Status status;
 	int totalEnemyLifePoints;
 	int nbTurn;
+	List<Action> actions;
 	
 	
 	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
@@ -183,6 +212,23 @@ class Game {
 		this.totalEnemyLifePoints = getTotalEnemyLifePoints();
 		this.score = 0;
 		this.nbTurn = 0;
+	}
+	
+	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies, List<Action> actions) {
+		super();
+		this.player = player;
+		this.datas = datas;
+		this.enemies = enemies;
+		this.status = Status.ONGOING;
+		this.totalEnemyLifePoints = getTotalEnemyLifePoints();
+		this.score = 0;
+		this.nbTurn = 0;
+		this.actions = actions;
+	}
+	
+	public Game clone() {
+		//TODO Need to clone all parameters
+		return new Game(this.player, this.datas, this.enemies, this.actions);
 	}
 
 	private int getTotalEnemyLifePoints() {
@@ -206,12 +252,55 @@ class Game {
 		}
 		computeScore();
 	}
+	
+	public int simulateAction(Action action) {
+		enemiesAction();
+		doPlayerAction(action);
+		removeDeadEnemy();
+		collectDatas();
+		updateStatus();
+		nbTurn++;
+		
+		if (status.equals(Status.ONGOING)) {
+			for (Action a : actions) {
+				Game game = this.clone();
+				score = game.simulateAction(a);
+			}
+		}
+		computeScore();
+		return score;
+	}
+
+	public Action getFirstAction() {
+		Action firstAct = null;
+		int scoreMax = 0;
+		for (Action action : actions) {
+			Game game = this.clone();
+			int score = game.simulateAction(action);
+			if (score > scoreMax) {
+				scoreMax = score;
+				firstAct = action;
+			}
+		}
+		return firstAct;
+	}
 
 	private void enemiesAction() {
 		for (Enemy e : this.enemies.values()) {
 			e.action();
 		}
 	}
+	
+	private void doPlayerAction(Action action) {
+		if (action instanceof Shoot) {
+			player.target = ((Shoot) action).getTarget();
+			player.shoot();
+		} else if (action instanceof Move) {
+			Move m = (Move) action;
+			player.move(m.getDestination());
+		}
+	}
+
 	
 	private void removeDeadEnemy() {
 		for (Enemy e : this.enemies.values()) {
@@ -276,4 +365,73 @@ enum Status {
 	ONGOING,
 	FAILURE,
 	FINISHED;
+}
+
+class Action {}
+
+class Move extends Action {
+	Map<Integer, Data> datas;
+	Map<Integer, Enemy> enemies;
+		
+	public Move(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
+		super();
+		this.datas = datas;
+		this.enemies = enemies;
+	}
+
+
+	public Position getDestination(){
+		return null;
+	};
+}
+
+class MoveToData extends Move {
+
+	public MoveToData(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
+		super(datas, enemies);
+	}
+	
+	@Override
+	public Position getDestination() {
+		for (Data d : datas.values()) {
+			return d.pos;
+		}
+		return null;
+	}	
+}
+
+class Shoot extends Action {
+	Map<Integer, Data> datas;
+	Map<Integer, Enemy> enemies;
+	
+	public Shoot(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
+		super();
+		this.datas = datas;
+		this.enemies = enemies;
+	}
+	
+	public Enemy getTarget(){
+		return null;
+	};
+}
+
+class ShootClosestEnemyFromData extends Shoot{
+
+	public ShootClosestEnemyFromData(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
+		super(datas, enemies);
+	}
+	
+	@Override
+	public Enemy getTarget() {
+		double minDist = Integer.MAX_VALUE;
+		Enemy target = null;
+		for(Enemy e : enemies.values()) {
+			if (e.distanceFormTarget < minDist) {
+				minDist = e.distanceFormTarget;
+				target = e;
+			}
+		}
+		return target;
+	}
+	
 }

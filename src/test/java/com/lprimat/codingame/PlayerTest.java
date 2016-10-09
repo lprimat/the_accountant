@@ -76,7 +76,7 @@ public class PlayerTest {
 	}
 	
 	@Test
-	public void simulate_simple_test_cases() {
+	public void simulate_simple_test_cases_without_actions() {
 		Joueur player = new Joueur(1100, 1200);
 		Map<Integer, Data> datas = new HashMap<>();
 		datas.put(0, new Data(0,8250,4500));
@@ -110,5 +110,22 @@ public class PlayerTest {
 		assertEquals(nbShot, player.nbShot);
 		assertEquals(finalScore, game.score);
 		assertEquals(nbTurn, game.nbTurn);
+	}
+	
+	@Test
+	public void simulate_simple_test_cases_with_simple_actions() {
+		Joueur player = new Joueur(1100, 1200);
+		Map<Integer, Data> datas = new HashMap<>();
+		datas.put(0, new Data(0,8250,4500));
+		Map<Integer, Enemy> enemies = new HashMap<>();
+		enemies.put(0, new Enemy(0,8250,8999,10, datas.values()));
+		player.target = enemies.get(0);
+		List<Action> actions = new ArrayList<>();
+		actions.add(new MoveToData(datas, enemies));
+		actions.add(new ShootClosestEnemyFromData(datas, enemies));
+		
+		Game game = new Game(player, datas, enemies, actions);
+		Action action = game.getFirstAction();
+		
 	}
 }

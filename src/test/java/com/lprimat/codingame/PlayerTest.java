@@ -25,7 +25,7 @@ public class PlayerTest {
 	public void verify_basic_next_enemy_pos() {
 		Enemy enemy = new Enemy(0,8250,8499,10);
 		enemy.target = new Data(0,8250,4500);;
-		enemy.action();
+		enemy.action(null);
 		assertEquals(8250, enemy.pos.x);
 		assertEquals(7999, enemy.pos.y);
 	}
@@ -34,7 +34,7 @@ public class PlayerTest {
 	public void verify_complex_next_enemy_pos() {
 		Enemy enemy = new Enemy(1,14005,8023,10);
 		enemy.target = new Data(1,8000,7100);
-		enemy.action();
+		enemy.action(null);
 		assertEquals(13510, enemy.pos.x);
 		assertEquals(7947, enemy.pos.y);
 	}
@@ -43,7 +43,7 @@ public class PlayerTest {
 	public void verify_complex_bis_next_enemy_pos() {
 		Enemy enemy = new Enemy(0,2646,7789,10);
 		enemy.target = new Data(0,950,7000);
-		enemy.action();
+		enemy.action(null);
 		assertEquals(2192, enemy.pos.x);
 		assertEquals(7578, enemy.pos.y);
 	}
@@ -119,13 +119,49 @@ public class PlayerTest {
 		datas.put(0, new Data(0,8250,4500));
 		Map<Integer, Enemy> enemies = new HashMap<>();
 		enemies.put(0, new Enemy(0,8250,8999,10, datas.values()));
-		player.target = enemies.get(0);
 		List<Action> actions = new ArrayList<>();
-		actions.add(new MoveToData(datas, enemies));
-		actions.add(new ShootClosestEnemyFromData(datas, enemies));
+		actions.add(new MoveToData());
+		actions.add(new ShootClosestEnemyFromData());
 		
-		Game game = new Game(player, datas, enemies, actions);
-		Action action = game.getFirstAction();
+		Game game = new Game(player, datas, enemies, actions, 0);
+		game.getFirstAction();
+		int bestScore = 131;
+		assertEquals(bestScore, game.score);
+	}
+	
+	@Test
+	public void simulate_2_enemies_test_cases_with_simple_actions() {
+		Joueur player = new Joueur(5000, 1000);
+		Map<Integer, Data> datas = new HashMap<>();
+		datas.put(0, new Data(0, 950, 7000));
+		datas.put(1, new Data(1, 8000, 7100));
+		Map<Integer, Enemy> enemies = new HashMap<>();
+		enemies.put(0, new Enemy(0, 3100, 8000, 10, datas.values()));
+		enemies.put(1, new Enemy(1, 14500, 8100, 10, datas.values()));
+		List<Action> actions = new ArrayList<>();
+		actions.add(new MoveToData());
+		actions.add(new ShootClosestEnemyFromData());
 		
+		Game game = new Game(player, datas, enemies, actions, 0);
+		System.out.println(game.getFirstAction().toString());
+		System.out.println(game.score);
+	}
+	
+	@Test
+	public void simulate_2_enemies_test_cases_with_simple_actions_bis() {
+		Joueur player = new Joueur(6323, 3691);
+		Map<Integer, Data> datas = new HashMap<>();
+		datas.put(0, new Data(0, 950, 7000));
+		datas.put(1, new Data(1, 8000, 7100));
+		Map<Integer, Enemy> enemies = new HashMap<>();
+		enemies.put(0, new Enemy(0, 1738, 7367, 10, datas.values()));
+		enemies.put(1, new Enemy(1, 13015, 7871, 10, datas.values()));
+		List<Action> actions = new ArrayList<>();
+		actions.add(new MoveToData());
+		actions.add(new ShootClosestEnemyFromData());
+		
+		Game game = new Game(player, datas, enemies, actions, 0);
+		System.out.println(game.getFirstAction().toString());
+		System.out.println(game.score);
 	}
 }

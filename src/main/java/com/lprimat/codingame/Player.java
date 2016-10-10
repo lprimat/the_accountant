@@ -3,38 +3,47 @@ import java.util.*;
 import java.io.*;
 import java.math.*;
 
-/**
- * Shoot enemies before they collect all the incriminating data!
- * The closer you are to an enemy, the more damage you do but don't get too close or you'll get killed.
- **/
 class Player {
 
     public static void main(String args[]) {
-    	String input = "1100;1200;1;0;8250;4500;1;0;8250;8999;10";
-    	Scanner in = new Scanner(input).useDelimiter(";");
+    	//String input = "1100;1200;1;0;8250;4500;1;0;8250;8999;10";
+    	//Scanner in = new Scanner(input).useDelimiter(";");
+    	Scanner in = new Scanner(System.in);
 
         // game loop
         while (true) {
             int x = in.nextInt();
             int y = in.nextInt();
+            Joueur player = new Joueur(x, y);
+            System.err.println(x + ", " + y);
+            Map<Integer, Data> datas = new HashMap<>();
             int dataCount = in.nextInt();
             for (int i = 0; i < dataCount; i++) {
                 int dataId = in.nextInt();
                 int dataX = in.nextInt();
                 int dataY = in.nextInt();
+                System.err.println(dataId + ", " + dataX + ", " + dataY);
+                datas.put(i, new Data(dataId, dataX, dataY));
             }
+            Map<Integer, Enemy> enemies = new HashMap<>();
             int enemyCount = in.nextInt();
             for (int i = 0; i < enemyCount; i++) {
                 int enemyId = in.nextInt();
                 int enemyX = in.nextInt();
                 int enemyY = in.nextInt();
                 int enemyLife = in.nextInt();
+                System.err.println(enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife);
+                enemies.put(i, new Enemy(enemyId, enemyX, enemyY, enemyLife, datas.values()));
             }
-
-            // Write an action using System.out.println()
-            // To debug: System.err.println("Debug messages...");
-
-            System.out.println("MOVE 8000 4500"); // MOVE x y or SHOOT id
+            
+            player.target = enemies.get(0);
+	    	List<Action> actions = new ArrayList<>();
+		    actions.add(new MoveToData());
+		    actions.add(new ShootClosestEnemyFromData());
+		    
+		    Game game = new Game(player, datas, enemies, actions, 0);
+		    Action action = game.getFirstAction();
+		    System.out.println(action.toString());
         }
     }
 }
@@ -50,7 +59,8 @@ class Position {
 	}
 }
 
-class Data {
+//DATA CAN BE IMMUTABLE
+class Data implements Cloneable {
 	int id;
 	Position pos;
 	
@@ -58,6 +68,11 @@ class Data {
 		super();
 		this.id = id;
 		this.pos = new Position(x, y);
+	}
+	
+	@Override
+	public Data clone() {
+		return new Data(this.id, this.pos.x, this.pos.y);
 	}
 }
 
@@ -70,6 +85,16 @@ class Joueur {
 	public Joueur(int x, int y) {
 		this.pos = new Position(x, y);
 		this.nbShot = 0;
+	}
+	
+	public Joueur(int x, int y, int nbShot, Enemy target) {
+		this.pos = new Position(x, y);
+		this.nbShot = nbShot;
+		this.target = target;
+	}
+	
+	public Joueur clone() {
+		return new Joueur(this.pos.x, this.pos.y, this.nbShot, this.target);
 	}
 	
 	/*
@@ -136,6 +161,18 @@ class Enemy {
 		this.distanceFormTarget = Integer.MAX_VALUE;
 		getTargetAndDistanceFromIt(datas);
 	}
+	
+	public Enemy(int id, int x, int y, int life, Data data, double distanceFormTarget) {
+		this.id = id;
+		this.pos = new Position(x, y);
+		this.life = life;
+		this.distanceFormTarget = distanceFormTarget;
+		this.target = data;
+	}
+
+	public Enemy clone() {
+		return new Enemy(this.id, this.pos.x, this.pos.y, this.life, this.target.clone(), this.distanceFormTarget);
+	}
 
 	/*
 	 * This method find the target (closest data) and setup the distance from it
@@ -146,15 +183,28 @@ class Enemy {
 			if (dist < this.distanceFormTarget) {
 				this.target = d;
 				this.distanceFormTarget = dist;
+				System.err.println("Target for e : " + this.id + " is : " + this.target.id);
 			}
 		}
 	}
 	
 	
-	public void action() {
+	public void action(Map<Integer, Data> datas) {
 		//TODO CHANGE TARGET IF CURRENT ONE IS DEAD
+		if (datas != null) {
+			getTargetStatus(datas);
+		}
 		move();
 		this.distanceFormTarget = Utils.getDist(this.pos, target.pos);
+	}
+
+	private void getTargetStatus(Map<Integer, Data> datas) {
+		if (datas.get(target.id) == null) {
+			this.target = null;
+			this.distanceFormTarget = Integer.MAX_VALUE;
+			getTargetAndDistanceFromIt(datas.values());
+			System.err.println("New target for e : " + this.id + " is : " + this.target.id);
+		}
 	}
 
 	/*
@@ -214,7 +264,7 @@ class Game {
 		this.nbTurn = 0;
 	}
 	
-	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies, List<Action> actions) {
+	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies, List<Action> actions, int nbTurn) {
 		super();
 		this.player = player;
 		this.datas = datas;
@@ -222,13 +272,15 @@ class Game {
 		this.status = Status.ONGOING;
 		this.totalEnemyLifePoints = getTotalEnemyLifePoints();
 		this.score = 0;
-		this.nbTurn = 0;
+		this.nbTurn = nbTurn;
 		this.actions = actions;
 	}
 	
 	public Game clone() {
-		//TODO Need to clone all parameters
-		return new Game(this.player, this.datas, this.enemies, this.actions);
+		//TODO Need a deep copy of each HashMap
+		Map<Integer, Data> datasClone = Utils.deepCopyData(datas);
+		Map<Integer, Enemy> enemiesClone = Utils.deepCopyEnemy(enemies);
+		return new Game(player.clone(), datasClone, enemiesClone, this.actions, this.nbTurn);
 	}
 
 	private int getTotalEnemyLifePoints() {
@@ -254,6 +306,7 @@ class Game {
 	}
 	
 	public int simulateAction(Action action) {
+		int scoreMax = 0;
 		enemiesAction();
 		doPlayerAction(action);
 		removeDeadEnemy();
@@ -264,10 +317,16 @@ class Game {
 		if (status.equals(Status.ONGOING)) {
 			for (Action a : actions) {
 				Game game = this.clone();
-				score = game.simulateAction(a);
+				int sonScore = game.simulateAction(a);
+				if (sonScore > scoreMax) {
+					score = sonScore;
+					scoreMax = sonScore;
+				}
 			}
+		} else {
+			computeScore();
 		}
-		computeScore();
+		System.err.println("NBTURN : " + nbTurn);
 		return score;
 	}
 
@@ -282,30 +341,46 @@ class Game {
 				firstAct = action;
 			}
 		}
+		score = scoreMax;
 		return firstAct;
 	}
 
 	private void enemiesAction() {
 		for (Enemy e : this.enemies.values()) {
-			e.action();
+			e.action(this.datas);
 		}
 	}
 	
 	private void doPlayerAction(Action action) {
 		if (action instanceof Shoot) {
-			player.target = ((Shoot) action).getTarget();
+			updatePlayerStatus();
+			player.target = ((Shoot) action).getTarget(this.datas, this.enemies);
 			player.shoot();
 		} else if (action instanceof Move) {
 			Move m = (Move) action;
-			player.move(m.getDestination());
+			player.move(m.getDestination(this.datas, this.enemies));
+			updatePlayerStatus();
 		}
 	}
 
 	
-	private void removeDeadEnemy() {
+	private void updatePlayerStatus() {
 		for (Enemy e : this.enemies.values()) {
-			if (e.life <= 0) {
-				enemies.remove(e.id);
+			double distFromPlayer = Utils.getDist(player.pos, e.pos);
+			if (distFromPlayer <= 2000) {
+				player.pos = new Position(-1, -1);
+				break;
+			}
+		}
+	}
+
+	private void removeDeadEnemy() {
+		for (Iterator<Map.Entry<Integer, Enemy>> iterator = enemies.entrySet().iterator(); iterator.hasNext();) {
+			Map.Entry<Integer, Enemy> e = iterator.next();
+			if (e.getValue().life <= 0) {
+				System.err.println("Dead enemy : " + e.getValue().id);
+				iterator.remove();
+				//TODO TRY TO COUNT THE NUMBER OF DEAD ENEMY
 				score += 10;
 			}
 		}
@@ -315,24 +390,29 @@ class Game {
 	private void collectDatas() {
 		for (Enemy e : this.enemies.values()) {
 			if (e.distanceFormTarget == 0) {
+				System.err.println("Dead data : " + e.target.id);
 				datas.remove(e.target.id);
 			}
 		}
 	}
 
 	private void updateStatus() {
-		if (enemies.isEmpty()) {
-			this.status = Status.FINISHED;
+		if  (player.pos.x == -1 && player.pos.y == -1) {
+			this.status = Status.DEAD;
 		}
-		if (datas.isEmpty()) {
+		if (enemies.isEmpty() || datas.isEmpty()) {
 			this.status = Status.FAILURE;
 		}
 	}
 	
 	private void computeScore() {
-		score += datas.size() * 100;
-		int bonusPoints = datas.size() * Math.max(0, (totalEnemyLifePoints - 3 * player.nbShot)) * 3;
-		score += bonusPoints;
+		if (this.status.equals(Status.DEAD)) {
+			score = 0;
+		} else {
+			score += datas.size() * 100;
+			int bonusPoints = datas.size() * Math.max(0, (totalEnemyLifePoints - 3 * player.nbShot)) * 3;
+			score += bonusPoints;
+		}
 	}
 
 }
@@ -348,7 +428,7 @@ class Utils {
 		//Optim : Maybe save the cost of sqrt
 		return Math.sqrt(powA + powB);
 	}
-	
+
 	/*
 	 * This method return the dps from shooter pos to target pos
 	 */
@@ -358,11 +438,28 @@ class Utils {
 		
 		return (int) Math.round(dps); 
 	}
+	
+	public static Map<Integer, Data> deepCopyData(Map<Integer, Data> map) {
+		Map<Integer, Data> copy = new HashMap<>();
+		for (Map.Entry<Integer, Data> entry : map.entrySet()) {
+			copy.put(entry.getKey(), entry.getValue().clone());
+		}
+		return copy;
+	}
+	
+	public static Map<Integer, Enemy> deepCopyEnemy(Map<Integer, Enemy> map) {
+		Map<Integer, Enemy> copy = new HashMap<>();
+		for (Map.Entry<Integer, Enemy> entry : map.entrySet()) {
+			copy.put(entry.getKey(), entry.getValue().clone());
+		}
+		return copy;
+	}
 }
 
 
 enum Status {
 	ONGOING,
+	DEAD,
 	FAILURE,
 	FINISHED;
 }
@@ -370,30 +467,32 @@ enum Status {
 class Action {}
 
 class Move extends Action {
-	Map<Integer, Data> datas;
-	Map<Integer, Enemy> enemies;
-		
-	public Move(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
+	Position destination;
+	
+	public Move() {
 		super();
-		this.datas = datas;
-		this.enemies = enemies;
 	}
 
-
-	public Position getDestination(){
+	public Position getDestination(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
 		return null;
-	};
+	}
+
+	@Override
+	public String toString() {
+		return "MOVE " + destination.x + " " + destination.y;
+	}
 }
 
 class MoveToData extends Move {
 
-	public MoveToData(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
-		super(datas, enemies);
+	public MoveToData() {
+		super();
 	}
 	
 	@Override
-	public Position getDestination() {
+	public Position getDestination(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
 		for (Data d : datas.values()) {
+			destination = d.pos;
 			return d.pos;
 		}
 		return null;
@@ -401,28 +500,30 @@ class MoveToData extends Move {
 }
 
 class Shoot extends Action {
-	Map<Integer, Data> datas;
-	Map<Integer, Enemy> enemies;
+	int targetId;
 	
-	public Shoot(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
+	public Shoot() {
 		super();
-		this.datas = datas;
-		this.enemies = enemies;
 	}
 	
-	public Enemy getTarget(){
+	public Enemy getTarget(Map<Integer, Data> datas, Map<Integer, Enemy> enemies){
 		return null;
 	};
+	
+	@Override
+	public String toString() {
+		return "SHOOT " + targetId;
+	}
 }
 
 class ShootClosestEnemyFromData extends Shoot{
 
-	public ShootClosestEnemyFromData(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
-		super(datas, enemies);
+	public ShootClosestEnemyFromData() {
+		super();
 	}
 	
 	@Override
-	public Enemy getTarget() {
+	public Enemy getTarget(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
 		double minDist = Integer.MAX_VALUE;
 		Enemy target = null;
 		for(Enemy e : enemies.values()) {
@@ -431,7 +532,7 @@ class ShootClosestEnemyFromData extends Shoot{
 				target = e;
 			}
 		}
+		targetId = target != null ? target.id : 0;
 		return target;
 	}
-	
 }

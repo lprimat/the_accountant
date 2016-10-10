@@ -142,7 +142,12 @@ public class PlayerTest {
 		actions.add(new MoveToData());
 		actions.add(new ShootClosestEnemyFromData());
 		
+		long start = System.currentTimeMillis();
 		Game game = new Game(player, datas, enemies, actions, 0);
+		long end = System.currentTimeMillis();
+	    long elasped = end - start;
+	    System.err.println("Time : " + elasped);
+	    
 		System.out.println(game.getFirstAction().toString());
 		System.out.println(game.score);
 	}
@@ -159,8 +164,11 @@ public class PlayerTest {
 		List<Action> actions = new ArrayList<>();
 		actions.add(new MoveToData());
 		actions.add(new ShootClosestEnemyFromData());
-		
+		long start = System.currentTimeMillis();
 		Game game = new Game(player, datas, enemies, actions, 0);
+		long end = System.currentTimeMillis();
+	    long elasped = end - start;
+	    System.err.println("Time : " + elasped);
 		System.out.println(game.getFirstAction().toString());
 		System.out.println(game.score);
 	}

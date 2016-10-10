@@ -1,14 +1,21 @@
 package com.lprimat.codingame;
-import java.util.*;
-import java.io.*;
-import java.math.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
 
 class Player {
+	
+	static long deepCopyGlobalTime;
+	static long hashCopyTime;
 
     public static void main(String args[]) {
-    	//String input = "1100;1200;1;0;8250;4500;1;0;8250;8999;10";
-    	//Scanner in = new Scanner(input).useDelimiter(";");
-    	Scanner in = new Scanner(System.in);
+    	String input = "5000;1000;2;0;950;7000;1;8000;7100;2;0;3100;8000;10;1;14500;8100;10";
+    	Scanner in = new Scanner(input).useDelimiter(";");
+    	//Scanner in = new Scanner(System.in);
 
         // game loop
         while (true) {
@@ -41,8 +48,14 @@ class Player {
 		    actions.add(new MoveToData());
 		    actions.add(new ShootClosestEnemyFromData());
 		    
+		    long start = System.currentTimeMillis();
 		    Game game = new Game(player, datas, enemies, actions, 0);
 		    Action action = game.getFirstAction();
+		    long end = System.currentTimeMillis();
+		    long elasped = end - start;
+		    System.err.println("DeepCopy time : " + deepCopyGlobalTime);
+		    System.err.println("HashCopy time : " + hashCopyTime);
+		    System.err.println("Time : " + elasped);
 		    System.out.println(action.toString());
         }
     }
@@ -60,19 +73,14 @@ class Position {
 }
 
 //DATA CAN BE IMMUTABLE
-class Data implements Cloneable {
-	int id;
-	Position pos;
+class Data {
+	final int id;
+	final Position pos;
 	
 	public Data(int id, int x, int y) {
 		super();
 		this.id = id;
 		this.pos = new Position(x, y);
-	}
-	
-	@Override
-	public Data clone() {
-		return new Data(this.id, this.pos.x, this.pos.y);
 	}
 }
 
@@ -171,7 +179,7 @@ class Enemy {
 	}
 
 	public Enemy clone() {
-		return new Enemy(this.id, this.pos.x, this.pos.y, this.life, this.target.clone(), this.distanceFormTarget);
+		return new Enemy(this.id, this.pos.x, this.pos.y, this.life, this.target, this.distanceFormTarget);
 	}
 
 	/*
@@ -183,7 +191,7 @@ class Enemy {
 			if (dist < this.distanceFormTarget) {
 				this.target = d;
 				this.distanceFormTarget = dist;
-				System.err.println("Target for e : " + this.id + " is : " + this.target.id);
+				//System.err.println("Target for e : " + this.id + " is : " + this.target.id);
 			}
 		}
 	}
@@ -203,7 +211,7 @@ class Enemy {
 			this.target = null;
 			this.distanceFormTarget = Integer.MAX_VALUE;
 			getTargetAndDistanceFromIt(datas.values());
-			System.err.println("New target for e : " + this.id + " is : " + this.target.id);
+			//System.err.println("New target for e : " + this.id + " is : " + this.target.id);
 		}
 	}
 
@@ -277,10 +285,14 @@ class Game {
 	}
 	
 	public Game clone() {
-		//TODO Need a deep copy of each HashMap
-		Map<Integer, Data> datasClone = Utils.deepCopyData(datas);
-		Map<Integer, Enemy> enemiesClone = Utils.deepCopyEnemy(enemies);
-		return new Game(player.clone(), datasClone, enemiesClone, this.actions, this.nbTurn);
+		Map<Integer, Enemy> enemiesClone = Utils.deepCopyEnemy(this.enemies);
+		//long start = System.currentTimeMillis();
+		//Map<Integer, Data> dataClone = new HashMap<>(this.datas);
+		//long end = System.currentTimeMillis();
+		//long elasped = end - start;
+		//Player.hashCopyTime += elasped;
+		Map<Integer, Data> dataClone = Utils.deepCopyData(this.datas);
+		return new Game(player.clone(), dataClone, enemiesClone, this.actions, this.nbTurn);
 	}
 
 	private int getTotalEnemyLifePoints() {
@@ -326,7 +338,7 @@ class Game {
 		} else {
 			computeScore();
 		}
-		System.err.println("NBTURN : " + nbTurn);
+		//System.err.println("NBTURN : " + nbTurn);
 		return score;
 	}
 
@@ -378,7 +390,7 @@ class Game {
 		for (Iterator<Map.Entry<Integer, Enemy>> iterator = enemies.entrySet().iterator(); iterator.hasNext();) {
 			Map.Entry<Integer, Enemy> e = iterator.next();
 			if (e.getValue().life <= 0) {
-				System.err.println("Dead enemy : " + e.getValue().id);
+				//System.err.println("Dead enemy : " + e.getValue().id);
 				iterator.remove();
 				//TODO TRY TO COUNT THE NUMBER OF DEAD ENEMY
 				score += 10;
@@ -390,7 +402,7 @@ class Game {
 	private void collectDatas() {
 		for (Enemy e : this.enemies.values()) {
 			if (e.distanceFormTarget == 0) {
-				System.err.println("Dead data : " + e.target.id);
+				//System.err.println("Dead data : " + e.target.id);
 				datas.remove(e.target.id);
 			}
 		}
@@ -439,19 +451,29 @@ class Utils {
 		return (int) Math.round(dps); 
 	}
 	
-	public static Map<Integer, Data> deepCopyData(Map<Integer, Data> map) {
-		Map<Integer, Data> copy = new HashMap<>();
-		for (Map.Entry<Integer, Data> entry : map.entrySet()) {
-			copy.put(entry.getKey(), entry.getValue().clone());
-		}
-		return copy;
-	}
-	
 	public static Map<Integer, Enemy> deepCopyEnemy(Map<Integer, Enemy> map) {
+		long start = System.currentTimeMillis();
 		Map<Integer, Enemy> copy = new HashMap<>();
 		for (Map.Entry<Integer, Enemy> entry : map.entrySet()) {
 			copy.put(entry.getKey(), entry.getValue().clone());
 		}
+		long end = System.currentTimeMillis();
+		long elasped = end - start;
+		Player.deepCopyGlobalTime += elasped;
+		//System.err.println("deepCopyEnemy time : " + elasped);
+		return copy;
+	}
+	
+	public static Map<Integer, Data> deepCopyData(Map<Integer, Data> map) {
+		long start = System.currentTimeMillis();
+		Map<Integer, Data> copy = new HashMap<>();
+		for (Map.Entry<Integer, Data> entry : map.entrySet()) {
+			copy.put(entry.getKey(), entry.getValue());
+		}
+		long end = System.currentTimeMillis();
+		long elasped = end - start;
+		Player.hashCopyTime += elasped;
+		//System.err.println("deepCopyEnemy time : " + elasped);
 		return copy;
 	}
 }

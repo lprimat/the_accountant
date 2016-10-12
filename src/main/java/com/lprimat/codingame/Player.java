@@ -728,7 +728,7 @@ class MoveToSafestPosition extends Move {
 	private List<Position> getAllPositionFromRange(Position myPos, int moveRange) {
 			List<Position> posFromRange = new ArrayList<>();
 			for (int i = 500; i <= moveRange; i += 500) {
-				for (int angle = 0; angle <= 360; angle+= 20) {
+				for (int angle = 0; angle <= 360; angle+= 36) {
 					int x = getXFromPolarCoordinate(myPos, i, angle);
 					int y = getYFromPolarCoordinate(myPos, i, angle);
 					if (x >= 0 && x < Game.MAX_WIDTH && y >= 0 && y <= Game.MAX_HEIGHT) {

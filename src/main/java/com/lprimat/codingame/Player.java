@@ -15,80 +15,92 @@ class Player {
 	static long hashCopyTime;
 	static LinkedList<Action> actions = new LinkedList<>();
 	public static long listCopyTime;
+	public static long beginTime;
 
     public static void main(String args[]) {
-    	String input = "5000;1000;2;0;950;7000;1;8000;7100;2;0;3100;8000;10;1;14500;8100;10";
-    	Scanner in = new Scanner(input).useDelimiter(";");
-    	//Scanner in = new Scanner(System.in);
+    	//String input = "5000;1000;2;0;950;7000;1;8000;7100;2;0;3100;8000;10;1;14500;8100;10";
+    	//Scanner in = new Scanner(input).useDelimiter(";");
+    	Scanner in = new Scanner(System.in);
 
         // game loop
     	int gameTurn = 0;
     	Game game = null;
-        while (true) {
+    	while (true) {
         	if (gameTurn == 0) {
-	            int x = in.nextInt();
-	            int y = in.nextInt();
-	            Joueur player = new Joueur(x, y);
-	            System.err.println(x + ", " + y);
-	            Map<Integer, Data> datas = new HashMap<>();
-	            int dataCount = in.nextInt();
-	            for (int i = 0; i < dataCount; i++) {
-	                int dataId = in.nextInt();
-	                int dataX = in.nextInt();
-	                int dataY = in.nextInt();
-	                System.err.println(dataId + ", " + dataX + ", " + dataY);
-	                datas.put(i, new Data(dataId, dataX, dataY));
-	            }
-	            Map<Integer, Enemy> enemies = new HashMap<>();
-	            int enemyCount = in.nextInt();
-	            for (int i = 0; i < enemyCount; i++) {
-	                int enemyId = in.nextInt();
-	                int enemyX = in.nextInt();
-	                int enemyY = in.nextInt();
-	                int enemyLife = in.nextInt();
-	                System.err.println(enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife);
-	                enemies.put(i, new Enemy(enemyId, enemyX, enemyY, enemyLife, datas.values()));
-	            }
-	            
-	            player.target = enemies.get(0);
-		    	List<Action> actions = new ArrayList<>();
-			    actions.add(new MoveToData());
-			    actions.add(new ShootClosestEnemyFromData());
-			    
-			    long start = System.currentTimeMillis();
-			    game = new Game(player, datas, enemies, actions);
-			    Action action = game.getListOfActions().get(gameTurn);
-			    long end = System.currentTimeMillis();
-			    long elasped = end - start;
-			    System.err.println("DeepCopy time : " + deepCopyGlobalTime);
-			    System.err.println("HashCopy time : " + hashCopyTime);
-			    System.err.println("Time : " + elasped);
-			    System.out.println(action.toString());
+	            game = playTurn(in, gameTurn);
 			} else if (gameTurn < game.bestActions.size()){
-				int x = in.nextInt();
-	            int y = in.nextInt();
-	            System.err.println(x + ", " + y);
-	            int dataCount = in.nextInt();
-	            for (int i = 0; i < dataCount; i++) {
-	                int dataId = in.nextInt();
-	                int dataX = in.nextInt();
-	                int dataY = in.nextInt();
-	                System.err.println(dataId + ", " + dataX + ", " + dataY);
-	            }
-	            int enemyCount = in.nextInt();
-	            for (int i = 0; i < enemyCount; i++) {
-	                int enemyId = in.nextInt();
-	                int enemyX = in.nextInt();
-	                int enemyY = in.nextInt();
-	                int enemyLife = in.nextInt();
-	                System.err.println(enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife);
-	            }
-				System.err.println("Game turn :" + gameTurn);
+        		int x = in.nextInt();
+        		int y = in.nextInt();
+        		System.err.println(x + ", " + y);
+        		int dataCount = in.nextInt();
+        		for (int i = 0; i < dataCount; i++) {
+        		    int dataId = in.nextInt();
+        		    int dataX = in.nextInt();
+        		    int dataY = in.nextInt();
+        		    System.err.println(dataId + ", " + dataX + ", " + dataY);
+        		}
+        		int enemyCount = in.nextInt();
+        		for (int i = 0; i < enemyCount; i++) {
+        		    int enemyId = in.nextInt();
+        		    int enemyX = in.nextInt();
+        		    int enemyY = in.nextInt();
+        		    int enemyLife = in.nextInt();
+        		    System.err.println(enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife);
+        		}
+                System.err.println("Game turn :" + gameTurn);
 				System.out.println(game.bestActions.get(gameTurn).toString());
+			} else {
+				gameTurn = 0;
+				game = playTurn(in, gameTurn);
 			}
         	gameTurn++;
         }
     }
+
+	private static Game playTurn(Scanner in, int gameTurn) {
+		Game game;
+		int x = in.nextInt();
+		int y = in.nextInt();
+		Joueur player = new Joueur(x, y);
+		System.err.println(x + ", " + y);
+		Map<Integer, Data> datas = new HashMap<>();
+		int dataCount = in.nextInt();
+		for (int i = 0; i < dataCount; i++) {
+		    int dataId = in.nextInt();
+		    int dataX = in.nextInt();
+		    int dataY = in.nextInt();
+		    System.err.println(dataId + ", " + dataX + ", " + dataY);
+		    datas.put(i, new Data(dataId, dataX, dataY));
+		}
+		Map<Integer, Enemy> enemies = new HashMap<>();
+		int enemyCount = in.nextInt();
+		for (int i = 0; i < enemyCount; i++) {
+		    int enemyId = in.nextInt();
+		    int enemyX = in.nextInt();
+		    int enemyY = in.nextInt();
+		    int enemyLife = in.nextInt();
+		    System.err.println(enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife);
+		    enemies.put(i, new Enemy(enemyId, enemyX, enemyY, enemyLife, datas.values()));
+		}
+		
+		player.target = enemies.get(0);
+		List<Action> actions = new ArrayList<>();
+		actions.add(new MoveToData());
+		actions.add(new ShootClosestEnemyFromData());
+		
+		long start = System.currentTimeMillis();
+		Player.beginTime = start;
+		game = new Game(player, datas, enemies, actions);
+		Action action = game.getListOfActions().get(gameTurn);
+		long end = System.currentTimeMillis();
+		long elasped = end - start;
+		System.err.println("DeepCopy time : " + deepCopyGlobalTime);
+		System.err.println("HashCopy time : " + hashCopyTime);
+		System.err.println("Time : " + elasped);
+		System.err.println("Estimated Score : " + game.score);
+		System.out.println(action.toString());
+		return game;
+	}
 }
 
 class Position {
@@ -291,10 +303,12 @@ class Game {
 	List<Action> actions;
 	LinkedList<Action> bestActions;
 	LinkedList<Action> fathersActions;
+	Action playedAction;
 	
 	
 	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
 		super();
+		Player.beginTime = System.currentTimeMillis();
 		this.player = player;
 		this.datas = datas;
 		this.enemies = enemies;
@@ -307,6 +321,7 @@ class Game {
 	
 	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies, List<Action> actions) {
 		super();
+		Player.beginTime = System.currentTimeMillis();
 		this.player = player;
 		this.datas = datas;
 		this.enemies = enemies;
@@ -369,6 +384,7 @@ class Game {
 	public void simulateOneAction(Action action) {
 		enemiesAction();
 		doPlayerAction(action);
+		this.playedAction = action;
 		removeDeadEnemy();
 		collectDatas();
 		updateStatus();
@@ -385,51 +401,38 @@ class Game {
 		int scoreMax = -1;
 		enemiesAction();
 		doPlayerAction(action);
+		this.playedAction = action;
 		removeDeadEnemy();
 		collectDatas();
 		updateStatus();
 		nbTurn++;
 		
+		if (System.currentTimeMillis() - Player.beginTime > 800) {
+			this.bestActions = new LinkedList<>();
+			return (nbTotalEnemies - enemies.size()) * 10;
+		}
 		if (status.equals(Status.ONGOING)) {
 			for (Action a : actions) {
 				Game game = this.clone();
 				game.fathersActions.addLast(action);
-				int sonScore = game.simulateAction(a);
+				int sonScore = game.simulateAction(a.clone());
+				
 				if (sonScore > scoreMax) {
 					score = sonScore;
 					scoreMax = sonScore;
-					bestAction = a;
+					bestAction = game.playedAction;
 					bestSonActions = game.bestActions;
 				}
 			}
 			this.bestActions = Utils.deepCopyActions(bestSonActions);
-			this.bestActions.addFirst(bestAction.clone());
+			this.bestActions.addFirst(bestAction);
 		} else {
 			computeScore();
-			if (this.score == 232) {
-				System.err.println("FATHERS ; " + this.fathersActions);
-			}
 			this.bestActions = new LinkedList<>();
 		}
-		//System.err.println("NBTURN : " + nbTurn);
 		return score;
 	}
 
-//	public Action getFirstAction() {
-//		Action firstAct = null;
-//		int scoreMax = 0;
-//		for (Action action : actions) {
-//			Game game = this.clone();
-//			int score = game.simulateAction(action);
-//			if (score > scoreMax) {
-//				scoreMax = score;
-//				firstAct = action;
-//			}
-//		}
-//		score = scoreMax;
-//		return firstAct;
-//	}
-	
 	public LinkedList<Action> getListOfActions() {
 		Action firstAct = null;
 		LinkedList<Action> bestSonActions = null;
@@ -437,10 +440,10 @@ class Game {
 		this.fathersActions = new LinkedList<>();
 		for (Action action : actions) {
 			Game game = this.clone();
-			int score = game.simulateAction(action);
+			int score = game.simulateAction(action.clone());
 			if (score > scoreMax) {
 				scoreMax = score;
-				firstAct = action;
+				firstAct = game.playedAction;
 				bestSonActions = game.bestActions;
 			}
 		}
@@ -459,8 +462,10 @@ class Game {
 	private void doPlayerAction(Action action) {
 		if (action instanceof Shoot) {
 			updatePlayerStatus();
-			player.target = ((Shoot) action).getTarget(this.datas, this.enemies);
-			player.shoot();
+			if (player.pos.x != -1 && player.pos.y != -1) {  
+				player.target = ((Shoot) action).getTarget(this.datas, this.enemies);
+				player.shoot();
+			}
 		} else if (action instanceof Move) {
 			Move m = (Move) action;
 			player.move(m.getDestination(this.datas, this.enemies));
@@ -576,7 +581,7 @@ class Utils {
 		long start = System.currentTimeMillis();
 		LinkedList<Action> copy = new LinkedList<>();
 		for (Action a : list) {
-			copy.add(a.clone());
+			copy.add(a);
 		}
 		long end = System.currentTimeMillis();
 		long elasped = end - start;
@@ -602,29 +607,23 @@ class Action {
 	}
 }
 
-class Move extends Action {
+abstract class Move extends Action {
 	Position destination;
 	
 	public Move() {
 		super();
+		this.destination = null;
 	}
 
 	public Move(Position dest) {
 		this.destination = new Position(dest.x, dest.y);
 	}
 
-	public Position getDestination(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
-		return null;
-	}
+	public abstract Position getDestination(Map<Integer, Data> datas, Map<Integer, Enemy> enemies);
 
 	@Override
 	public String toString() {
 		return "MOVE " + destination.x + " " + destination.y;
-	}
-	
-	@Override
-	public Move clone() {
-		return new Move(destination);
 	}
 }
 
@@ -634,9 +633,18 @@ class MoveToFixedPos extends Move {
 		super();
 	}
 	
+	public MoveToFixedPos(Position dest) {
+		this.destination = new Position(1100, 1200);
+	}
+	
 	@Override
 	public Position getDestination(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
 		return new Position(5000, 2500);
+	}
+	
+	@Override
+	public MoveToFixedPos clone() {
+		return new MoveToFixedPos(destination);
 	}
 }
 
@@ -646,14 +654,23 @@ class MoveToData extends Move {
 		super();
 	}
 	
+	public MoveToData(Position dest) {
+		this.destination = new Position(dest.x, dest.y);
+	}
+	
 	@Override
 	public Position getDestination(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
 		for (Data d : datas.values()) {
-			destination = d.pos;
+			this.destination = d.pos;
 			return d.pos;
 		}
-		return null;
-	}	
+		return destination;	
+	}
+	
+	@Override
+	public MoveToData clone() {
+		return new MoveToData();
+	}
 }
 
 class Shoot extends Action {
@@ -661,6 +678,7 @@ class Shoot extends Action {
 	
 	public Shoot() {
 		super();
+		this.targetId = -1;
 	}
 	
 	public Shoot(int targetId) {
@@ -678,7 +696,7 @@ class Shoot extends Action {
 	
 	@Override
 	public Shoot clone() {
-		return new Shoot(targetId);
+		return new Shoot();
 	}
 }
 
@@ -686,6 +704,10 @@ class ShootClosestEnemyFromData extends Shoot{
 
 	public ShootClosestEnemyFromData() {
 		super();
+	}
+	
+	public ShootClosestEnemyFromData(int targetId) {
+		this.targetId = targetId;
 	}
 	
 	@Override
@@ -700,5 +722,10 @@ class ShootClosestEnemyFromData extends Shoot{
 		}
 		this.targetId = target.id;
 		return target;
+	}
+	
+	@Override
+	public ShootClosestEnemyFromData clone() {
+		return new ShootClosestEnemyFromData(targetId);
 	}
 }

@@ -37,7 +37,7 @@ class Player {
         		    int dataId = in.nextInt();
         		    int dataX = in.nextInt();
         		    int dataY = in.nextInt();
-        		    System.err.println(dataId + ", " + dataX + ", " + dataY);
+        		    System.err.println("datas.put(" + dataId + ", new Data(" + dataId + ", " + dataX + ", " + dataY +"));");
         		}
         		int enemyCount = in.nextInt();
         		for (int i = 0; i < enemyCount; i++) {
@@ -45,7 +45,8 @@ class Player {
         		    int enemyX = in.nextInt();
         		    int enemyY = in.nextInt();
         		    int enemyLife = in.nextInt();
-        		    System.err.println(enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife);
+        		    System.err.println("enemies.put(" + enemyId + ", new Enemy(" + 
+        		    enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife +", datas.values());");
         		}
                 System.err.println("Game turn :" + gameTurn);
 				System.out.println(game.bestActions.get(gameTurn).toString());
@@ -62,14 +63,14 @@ class Player {
 		int x = in.nextInt();
 		int y = in.nextInt();
 		Joueur player = new Joueur(x, y);
-		System.err.println(x + ", " + y);
+		//System.err.println(x + ", " + y);
 		Map<Integer, Data> datas = new HashMap<>();
 		int dataCount = in.nextInt();
 		for (int i = 0; i < dataCount; i++) {
 		    int dataId = in.nextInt();
 		    int dataX = in.nextInt();
 		    int dataY = in.nextInt();
-		    System.err.println(dataId + ", " + dataX + ", " + dataY);
+		    //System.err.println(dataId + ", " + dataX + ", " + dataY);
 		    datas.put(i, new Data(dataId, dataX, dataY));
 		}
 		Map<Integer, Enemy> enemies = new HashMap<>();
@@ -79,25 +80,30 @@ class Player {
 		    int enemyX = in.nextInt();
 		    int enemyY = in.nextInt();
 		    int enemyLife = in.nextInt();
-		    System.err.println(enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife);
+		    //System.err.println(enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife);
 		    enemies.put(i, new Enemy(enemyId, enemyX, enemyY, enemyLife, datas.values()));
 		}
 		
 		player.target = enemies.get(0);
 		List<Action> actions = new ArrayList<>();
-		actions.add(new MoveToData());
+	    actions.add(new MoveToDataInDanger());
 		actions.add(new ShootClosestEnemyFromData());
+		if (enemies.size() < 30 && datas.size() < 30) {
+		    actions.add(new MoveToSafestPosition());
+		}
 		
 		long start = System.currentTimeMillis();
-		Player.beginTime = start;
+		//Player.beginTime = start;
 		game = new Game(player, datas, enemies, actions);
-		Action action = game.getListOfActions().get(gameTurn);
+		List<Action> actionsToDo =  game.getListOfActions();
+		Action action = actionsToDo.get(gameTurn);
 		long end = System.currentTimeMillis();
 		long elasped = end - start;
 		System.err.println("DeepCopy time : " + deepCopyGlobalTime);
 		System.err.println("HashCopy time : " + hashCopyTime);
 		System.err.println("Time : " + elasped);
 		System.err.println("Estimated Score : " + game.score);
+		System.err.println("Actions list size : " + actionsToDo.size());
 		System.out.println(action.toString());
 		return game;
 	}
@@ -130,7 +136,8 @@ class Joueur {
 	Position pos;
 	Enemy target;
 	int nbShot;
-	static final int MOVE_RANGE = 1000; 
+	static final int MOVE_RANGE = 1000;
+	static final int SAFE_RANGE = 2000; 
 	
 	public Joueur(int x, int y) {
 		this.pos = new Position(x, y);
@@ -305,6 +312,10 @@ class Game {
 	LinkedList<Action> fathersActions;
 	Action playedAction;
 	
+	static final int MAX_WIDTH = 16000;
+	static final int MAX_HEIGHT = 9000;
+	private static final long MAX_CALCULATION_TIME = 950;
+	
 	
 	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
 		super();
@@ -407,7 +418,7 @@ class Game {
 		updateStatus();
 		nbTurn++;
 		
-		if (System.currentTimeMillis() - Player.beginTime > 800) {
+		if (System.currentTimeMillis() - Player.beginTime > Game.MAX_CALCULATION_TIME) {
 			this.bestActions = new LinkedList<>();
 			return (nbTotalEnemies - enemies.size()) * 10;
 		}
@@ -468,7 +479,7 @@ class Game {
 			}
 		} else if (action instanceof Move) {
 			Move m = (Move) action;
-			player.move(m.getDestination(this.datas, this.enemies));
+			player.move(m.getDestination(this));
 			updatePlayerStatus();
 		}
 	}
@@ -477,7 +488,7 @@ class Game {
 	private void updatePlayerStatus() {
 		for (Enemy e : this.enemies.values()) {
 			double distFromPlayer = Utils.getDist(player.pos, e.pos);
-			if (distFromPlayer <= 2000) {
+			if (distFromPlayer <= Joueur.SAFE_RANGE) {
 				player.pos = new Position(-1, -1);
 				break;
 			}
@@ -507,12 +518,15 @@ class Game {
 	private void updateStatus() {
 		if  (player.pos.x == -1 && player.pos.y == -1) {
 			this.status = Status.DEAD;
+			return;
 		}
 		if (datas.isEmpty()) {
 			this.status = Status.FAILURE;
+			return;
 		}
 		if (enemies.isEmpty()) {
 			this.status = Status.FINISHED;
+			return;
 		}
 	}
 	
@@ -619,7 +633,7 @@ abstract class Move extends Action {
 		this.destination = new Position(dest.x, dest.y);
 	}
 
-	public abstract Position getDestination(Map<Integer, Data> datas, Map<Integer, Enemy> enemies);
+	public abstract Position getDestination(Game game);
 
 	@Override
 	public String toString() {
@@ -638,7 +652,7 @@ class MoveToFixedPos extends Move {
 	}
 	
 	@Override
-	public Position getDestination(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
+	public Position getDestination(Game game) {
 		return new Position(5000, 2500);
 	}
 	
@@ -659,8 +673,8 @@ class MoveToData extends Move {
 	}
 	
 	@Override
-	public Position getDestination(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
-		for (Data d : datas.values()) {
+	public Position getDestination(Game game) {
+		for (Data d : game.datas.values()) {
 			this.destination = d.pos;
 			return d.pos;
 		}
@@ -671,6 +685,98 @@ class MoveToData extends Move {
 	public MoveToData clone() {
 		return new MoveToData();
 	}
+}
+
+class MoveToSafestPosition extends Move {
+	
+	public MoveToSafestPosition() {
+		super();
+	}
+	
+	@Override
+	public MoveToSafestPosition clone() {
+		return new MoveToSafestPosition();
+	}
+
+	@Override
+	public Position getDestination(Game game) {
+		List<Position> positionsFromRange = getAllPositionFromRange(game.player.pos, Joueur.MOVE_RANGE);
+		Collection<Enemy> enemis = game.enemies.values();
+		Position move = null;
+		for (Position position : positionsFromRange) {
+			if (isSafePositionFromEnemis(position, enemis)) {
+					move = position;
+				}
+		}
+		if (move == null) {
+			move = game.player.pos;
+		}
+		this.destination = move;
+		return move;
+	}
+	
+	private static Boolean isSafePositionFromEnemis(Position myPos, Collection<Enemy> enemis) {
+		for (Enemy e : enemis) {
+			double dist = Utils.getDist(myPos, e.pos);
+			if (dist <= Joueur.SAFE_RANGE) {
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	private List<Position> getAllPositionFromRange(Position myPos, int moveRange) {
+			List<Position> posFromRange = new ArrayList<>();
+			for (int i = 500; i <= moveRange; i += 500) {
+				for (int angle = 0; angle <= 360; angle+= 20) {
+					int x = getXFromPolarCoordinate(myPos, i, angle);
+					int y = getYFromPolarCoordinate(myPos, i, angle);
+					if (x >= 0 && x < Game.MAX_WIDTH && y >= 0 && y <= Game.MAX_HEIGHT) {
+					    posFromRange.add(new Position(x, y));
+					}
+				}
+			}
+			
+			return posFromRange;
+		}
+	
+	//TODO Add CosSinTable
+	private static int getXFromPolarCoordinate(Position o, int moveRange, int angle) {
+		double cos = Math.cos(Math.toRadians(angle));
+		return o.x + (int) (moveRange * cos);
+	}
+	
+	private static int getYFromPolarCoordinate(Position o, int moveRange, int angle) {
+		double sin = Math.sin(Math.toRadians(angle));
+		return o.y + (int) (moveRange * sin);
+	}
+}
+
+class MoveToDataInDanger extends Move {
+	
+	public MoveToDataInDanger() {
+		super();
+	}
+
+	@Override
+	public Position getDestination(Game game) {
+		double minDist = Integer.MAX_VALUE;
+		Position dest = null;
+		for(Enemy e : game.enemies.values()) {
+			if (e.distanceFormTarget < minDist) {
+				minDist = e.distanceFormTarget;
+				dest = e.target.pos;
+			}
+		}
+		this.destination = dest;
+		return dest;
+	}
+	
+	@Override
+	public MoveToDataInDanger clone() {
+		return new MoveToDataInDanger();
+	}
+	
 }
 
 class Shoot extends Action {

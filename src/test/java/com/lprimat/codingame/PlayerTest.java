@@ -161,7 +161,8 @@ public class PlayerTest {
 		enemies.put(0, new Enemy(0, 3100, 8000, 10, datas.values()));
 		enemies.put(1, new Enemy(1, 14500, 8100, 10, datas.values()));
 		List<Action> actions = new ArrayList<>();
-		actions.add(new MoveToData());
+		actions.add(new MoveToSafestPosition());
+		actions.add(new MoveToDataInDanger());
 		actions.add(new ShootClosestEnemyFromData());
 		
 		long start = System.currentTimeMillis();
@@ -215,8 +216,10 @@ public class PlayerTest {
 		enemies.put(9, new Enemy(9, 13000, 5000, 10, datas.values()));
 		
 		List<Action> actions = new ArrayList<>();
-		actions.add(new MoveToData());
+		
+		actions.add(new MoveToDataInDanger());
 		actions.add(new ShootClosestEnemyFromData());
+		actions.add(new MoveToSafestPosition());
 		
 		long start = System.currentTimeMillis();
 		Game game = new Game(player, datas, enemies, actions);
@@ -225,7 +228,8 @@ public class PlayerTest {
 	    long elasped = end - start;
 	    System.err.println("Time : " + elasped);
 	    
-		int nbActions = 21;
+		//int nbActions = 21; old
+	    int nbActions = 22;
 		int finalScore = 540;
 		
 		assertEquals(nbActions, actionsList.size());
@@ -316,4 +320,38 @@ public class PlayerTest {
 	    assertEquals(sizeAction, actionsList.size());
 	    assertEquals("[SHOOT 6]", actionsList.toString());
 	}
+	
+	@Test
+	public void should_shoot_target_when_game_is_almost_lost() {
+		//CrackDown Turn 33
+		Joueur player = new Joueur(1322, 1265);
+		Map<Integer, Data> datas = new HashMap<>();
+		datas.put(1, new Data(1, 37, 3575));
+		
+		Map<Integer, Enemy> enemies = new HashMap<>();
+		enemies.put(0, new Enemy(0, 2662, 3168, 1, datas.values()));
+		enemies.put(1, new Enemy(1, 712, 3453, 15, datas.values()));
+		enemies.put(3, new Enemy(3, 2537, 3439, 1, datas.values()));
+		enemies.put(4, new Enemy(4, 690, 3685, 5, datas.values()));
+		enemies.put(8, new Enemy(8, 2887, 4275, 5, datas.values()));
+		enemies.put(9, new Enemy(9, 2662, 3957, 1, datas.values()));
+		enemies.put(12, new Enemy(12, 2537, 3690, 1, datas.values()));
+		enemies.put(17, new Enemy(17, 1009, 3850, 15, datas.values()));
+		
+		List<Action> actions = new ArrayList<>();
+		actions.add(new MoveToDataInDanger());
+		actions.add(new ShootClosestEnemyFromData());
+		actions.add(new MoveToSafestPosition());
+		
+		long start = System.currentTimeMillis();
+		Game game = new Game(player, datas, enemies, actions);
+		LinkedList<Action> actionsList = game.getListOfActions();
+		int score = game.score;
+		long end = System.currentTimeMillis();
+	    long elasped = end - start;
+	    
+	    assertEquals("SHOOT 4", actionsList.get(0).toString());
+	    assertEquals("SHOOT 1", actionsList.get(1).toString());
+	    System.err.println("Time : " + elasped);
+	}	
 }

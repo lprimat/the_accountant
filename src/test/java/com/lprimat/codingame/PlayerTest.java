@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -76,7 +77,7 @@ public class PlayerTest {
 	}
 	
 	@Test
-	public void simulate_simple_test_cases_without_actions() {
+	public void should_have_a_score_of_110_and_do_5_action_when_only_shoot() {
 		Joueur player = new Joueur(1100, 1200);
 		Map<Integer, Data> datas = new HashMap<>();
 		datas.put(0, new Data(0,8250,4500));
@@ -84,32 +85,53 @@ public class PlayerTest {
 		enemies.put(0, new Enemy(0,8250,8999,10, datas.values()));
 		player.target = enemies.get(0);
 		
-		Game game = new Game(player, datas, enemies);
-		game.simulate();
+		List<Action> actions = new ArrayList<>();
+		actions.add(new ShootClosestEnemyFromData());
+		Game game = new Game(player, datas, enemies, actions);
+		game.getListOfActions();
 		int finalScore = 110;
-		int nbShot = 5;
+		int nbActions = 5;
 		
-		assertEquals(nbShot, player.nbShot);
+		assertEquals(nbActions, game.bestActions.size());
 		assertEquals(finalScore, game.score);
 	}
 	
 	@Test
-	public void simulate_lost_game() {
+	public void should_lost_game_when_player_do_nothing() {
 		Joueur player = new Joueur(1100, 1200);
 		Map<Integer, Data> datas = new HashMap<>();
 		datas.put(0, new Data(0,8250,4500));
 		Map<Integer, Enemy> enemies = new HashMap<>();
 		enemies.put(0, new Enemy(0,8250,8999,10, datas.values()));
 		
-		Game game = new Game(player, datas, enemies);
-		game.simulate();
+		List<Action> actions = new ArrayList<>();
+		actions.add(new MoveToFixedPos());
+		Game game = new Game(player, datas, enemies, actions);
+		game.getListOfActions();
+		int nbActions = 9;
 		int finalScore = 0;
-		int nbShot = 0;
-		int nbTurn = 9;
 		
-		assertEquals(nbShot, player.nbShot);
+		assertEquals(nbActions, game.bestActions.size());
 		assertEquals(finalScore, game.score);
-		assertEquals(nbTurn, game.nbTurn);
+	}
+	
+	@Test
+	public void should_switch_target_when_current_one_die() {
+		Joueur player = new Joueur(3320, 3485);
+		Map<Integer, Data> datas = new HashMap<>();
+		datas.put(0, new Data(0, 950, 7000));
+		datas.put(1, new Data(1, 8000, 7100));
+		Map<Integer, Enemy> enemies = new HashMap<>();
+		enemies.put(0, new Enemy(0, 1284, 7155, 4, datas.values()));
+		enemies.put(1, new Enemy(1, 12520, 7795, 10, datas.values()));
+		
+		Action shoot = new ShootClosestEnemyFromData();
+		Game game = new Game(player, datas, enemies);
+		
+		game.simulateOneAction(shoot);
+		assertEquals(1, game.enemies.size());
+		game.simulateOneAction(shoot);
+		assertEquals(1, game.player.target.id);
 	}
 	
 	@Test
@@ -123,8 +145,8 @@ public class PlayerTest {
 		actions.add(new MoveToData());
 		actions.add(new ShootClosestEnemyFromData());
 		
-		Game game = new Game(player, datas, enemies, actions, 0);
-		game.getFirstAction();
+		Game game = new Game(player, datas, enemies, actions);
+		LinkedList<Action> actionsList = game.getListOfActions();
 		int bestScore = 131;
 		assertEquals(bestScore, game.score);
 	}
@@ -143,12 +165,12 @@ public class PlayerTest {
 		actions.add(new ShootClosestEnemyFromData());
 		
 		long start = System.currentTimeMillis();
-		Game game = new Game(player, datas, enemies, actions, 0);
+		Game game = new Game(player, datas, enemies, actions);
+		LinkedList<Action> actionsList = game.getListOfActions();
 		long end = System.currentTimeMillis();
 	    long elasped = end - start;
 	    System.err.println("Time : " + elasped);
 	    
-		System.out.println(game.getFirstAction().toString());
 		System.out.println(game.score);
 	}
 	
@@ -165,11 +187,11 @@ public class PlayerTest {
 		actions.add(new MoveToData());
 		actions.add(new ShootClosestEnemyFromData());
 		long start = System.currentTimeMillis();
-		Game game = new Game(player, datas, enemies, actions, 0);
+		Game game = new Game(player, datas, enemies, actions);
 		long end = System.currentTimeMillis();
 	    long elasped = end - start;
 	    System.err.println("Time : " + elasped);
-		System.out.println(game.getFirstAction().toString());
+	    
 		System.out.println(game.score);
 	}
 }

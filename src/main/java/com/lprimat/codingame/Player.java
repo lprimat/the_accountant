@@ -1,8 +1,10 @@
 package com.lprimat.codingame;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -11,6 +13,8 @@ class Player {
 	
 	static long deepCopyGlobalTime;
 	static long hashCopyTime;
+	static LinkedList<Action> actions = new LinkedList<>();
+	public static long listCopyTime;
 
     public static void main(String args[]) {
     	String input = "5000;1000;2;0;950;7000;1;8000;7100;2;0;3100;8000;10;1;14500;8100;10";
@@ -18,45 +22,71 @@ class Player {
     	//Scanner in = new Scanner(System.in);
 
         // game loop
+    	int gameTurn = 0;
+    	Game game = null;
         while (true) {
-            int x = in.nextInt();
-            int y = in.nextInt();
-            Joueur player = new Joueur(x, y);
-            System.err.println(x + ", " + y);
-            Map<Integer, Data> datas = new HashMap<>();
-            int dataCount = in.nextInt();
-            for (int i = 0; i < dataCount; i++) {
-                int dataId = in.nextInt();
-                int dataX = in.nextInt();
-                int dataY = in.nextInt();
-                System.err.println(dataId + ", " + dataX + ", " + dataY);
-                datas.put(i, new Data(dataId, dataX, dataY));
-            }
-            Map<Integer, Enemy> enemies = new HashMap<>();
-            int enemyCount = in.nextInt();
-            for (int i = 0; i < enemyCount; i++) {
-                int enemyId = in.nextInt();
-                int enemyX = in.nextInt();
-                int enemyY = in.nextInt();
-                int enemyLife = in.nextInt();
-                System.err.println(enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife);
-                enemies.put(i, new Enemy(enemyId, enemyX, enemyY, enemyLife, datas.values()));
-            }
-            
-            player.target = enemies.get(0);
-	    	List<Action> actions = new ArrayList<>();
-		    actions.add(new MoveToData());
-		    actions.add(new ShootClosestEnemyFromData());
-		    
-		    long start = System.currentTimeMillis();
-		    Game game = new Game(player, datas, enemies, actions, 0);
-		    Action action = game.getFirstAction();
-		    long end = System.currentTimeMillis();
-		    long elasped = end - start;
-		    System.err.println("DeepCopy time : " + deepCopyGlobalTime);
-		    System.err.println("HashCopy time : " + hashCopyTime);
-		    System.err.println("Time : " + elasped);
-		    System.out.println(action.toString());
+        	if (gameTurn == 0) {
+	            int x = in.nextInt();
+	            int y = in.nextInt();
+	            Joueur player = new Joueur(x, y);
+	            System.err.println(x + ", " + y);
+	            Map<Integer, Data> datas = new HashMap<>();
+	            int dataCount = in.nextInt();
+	            for (int i = 0; i < dataCount; i++) {
+	                int dataId = in.nextInt();
+	                int dataX = in.nextInt();
+	                int dataY = in.nextInt();
+	                System.err.println(dataId + ", " + dataX + ", " + dataY);
+	                datas.put(i, new Data(dataId, dataX, dataY));
+	            }
+	            Map<Integer, Enemy> enemies = new HashMap<>();
+	            int enemyCount = in.nextInt();
+	            for (int i = 0; i < enemyCount; i++) {
+	                int enemyId = in.nextInt();
+	                int enemyX = in.nextInt();
+	                int enemyY = in.nextInt();
+	                int enemyLife = in.nextInt();
+	                System.err.println(enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife);
+	                enemies.put(i, new Enemy(enemyId, enemyX, enemyY, enemyLife, datas.values()));
+	            }
+	            
+	            player.target = enemies.get(0);
+		    	List<Action> actions = new ArrayList<>();
+			    actions.add(new MoveToData());
+			    actions.add(new ShootClosestEnemyFromData());
+			    
+			    long start = System.currentTimeMillis();
+			    game = new Game(player, datas, enemies, actions);
+			    Action action = game.getListOfActions().get(gameTurn);
+			    long end = System.currentTimeMillis();
+			    long elasped = end - start;
+			    System.err.println("DeepCopy time : " + deepCopyGlobalTime);
+			    System.err.println("HashCopy time : " + hashCopyTime);
+			    System.err.println("Time : " + elasped);
+			    System.out.println(action.toString());
+			} else if (gameTurn < game.bestActions.size()){
+				int x = in.nextInt();
+	            int y = in.nextInt();
+	            System.err.println(x + ", " + y);
+	            int dataCount = in.nextInt();
+	            for (int i = 0; i < dataCount; i++) {
+	                int dataId = in.nextInt();
+	                int dataX = in.nextInt();
+	                int dataY = in.nextInt();
+	                System.err.println(dataId + ", " + dataX + ", " + dataY);
+	            }
+	            int enemyCount = in.nextInt();
+	            for (int i = 0; i < enemyCount; i++) {
+	                int enemyId = in.nextInt();
+	                int enemyX = in.nextInt();
+	                int enemyY = in.nextInt();
+	                int enemyLife = in.nextInt();
+	                System.err.println(enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife);
+	            }
+				System.err.println("Game turn :" + gameTurn);
+				System.out.println(game.bestActions.get(gameTurn).toString());
+			}
+        	gameTurn++;
         }
     }
 }
@@ -198,7 +228,6 @@ class Enemy {
 	
 	
 	public void action(Map<Integer, Data> datas) {
-		//TODO CHANGE TARGET IF CURRENT ONE IS DEAD
 		if (datas != null) {
 			getTargetStatus(datas);
 		}
@@ -258,7 +287,10 @@ class Game {
 	Status status;
 	int totalEnemyLifePoints;
 	int nbTurn;
+	int nbTotalEnemies;
 	List<Action> actions;
+	LinkedList<Action> bestActions;
+	LinkedList<Action> fathersActions;
 	
 	
 	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
@@ -267,21 +299,50 @@ class Game {
 		this.datas = datas;
 		this.enemies = enemies;
 		this.status = Status.ONGOING;
+		this.nbTotalEnemies = enemies.size();
 		this.totalEnemyLifePoints = getTotalEnemyLifePoints();
 		this.score = 0;
 		this.nbTurn = 0;
 	}
 	
-	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies, List<Action> actions, int nbTurn) {
+	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies, List<Action> actions) {
 		super();
 		this.player = player;
 		this.datas = datas;
 		this.enemies = enemies;
 		this.status = Status.ONGOING;
+		this.actions = actions;
+		this.nbTotalEnemies = enemies.size();
 		this.totalEnemyLifePoints = getTotalEnemyLifePoints();
+		this.score = 0;
+		this.nbTurn = 0;
+	}
+	
+	public Game(int nbTurn, int nbTotalEnemies, int totalEnemyLifePoints, Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies, List<Action> actions) {
+		super();
+		this.player = player;
+		this.datas = datas;
+		this.enemies = enemies;
+		this.status = Status.ONGOING;
+		this.totalEnemyLifePoints = totalEnemyLifePoints;
+		this.nbTotalEnemies = nbTotalEnemies;
 		this.score = 0;
 		this.nbTurn = nbTurn;
 		this.actions = actions;
+	}
+	
+	public Game(int nbTurn, int nbTotalEnemies, int totalEnemyLifePoints, Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies, List<Action> actions, LinkedList<Action> copyFatherActions) {
+		super();
+		this.player = player;
+		this.datas = datas;
+		this.enemies = enemies;
+		this.status = Status.ONGOING;
+		this.totalEnemyLifePoints = totalEnemyLifePoints;
+		this.nbTotalEnemies = nbTotalEnemies;
+		this.score = 0;
+		this.nbTurn = nbTurn;
+		this.actions = actions;
+		this.fathersActions = copyFatherActions;
 	}
 	
 	public Game clone() {
@@ -292,7 +353,9 @@ class Game {
 		//long elasped = end - start;
 		//Player.hashCopyTime += elasped;
 		Map<Integer, Data> dataClone = Utils.deepCopyData(this.datas);
-		return new Game(player.clone(), dataClone, enemiesClone, this.actions, this.nbTurn);
+		//return new Game(this.nbTurn, this.nbTotalEnemies, this.totalEnemyLifePoints, player.clone(), dataClone, enemiesClone, this.actions);
+		LinkedList<Action> copyFatherActions = Utils.deepCopyActions(fathersActions);
+		return new Game(this.nbTurn, this.nbTotalEnemies, this.totalEnemyLifePoints, player.clone(), dataClone, enemiesClone, this.actions, copyFatherActions);
 	}
 
 	private int getTotalEnemyLifePoints() {
@@ -303,22 +366,23 @@ class Game {
 		return lifepoints;
 	}
 
-	public void simulate() {
-		while (this.status.equals(Status.ONGOING)) {
-			enemiesAction();
-			//TODO move Player
-			//TODO Check if player is dead
-			player.shoot();
-			removeDeadEnemy();
-			collectDatas();
-			updateStatus();
-			nbTurn++;
+	public void simulateOneAction(Action action) {
+		enemiesAction();
+		doPlayerAction(action);
+		removeDeadEnemy();
+		collectDatas();
+		updateStatus();
+		nbTurn++;
+		
+		if (!status.equals(Status.ONGOING)) {
+			computeScore();
 		}
-		computeScore();
 	}
 	
 	public int simulateAction(Action action) {
-		int scoreMax = 0;
+		Action bestAction = null;
+		LinkedList<Action> bestSonActions = null;
+		int scoreMax = -1;
 		enemiesAction();
 		doPlayerAction(action);
 		removeDeadEnemy();
@@ -329,32 +393,61 @@ class Game {
 		if (status.equals(Status.ONGOING)) {
 			for (Action a : actions) {
 				Game game = this.clone();
+				game.fathersActions.addLast(action);
 				int sonScore = game.simulateAction(a);
 				if (sonScore > scoreMax) {
 					score = sonScore;
 					scoreMax = sonScore;
+					bestAction = a;
+					bestSonActions = game.bestActions;
 				}
 			}
+			this.bestActions = Utils.deepCopyActions(bestSonActions);
+			this.bestActions.addFirst(bestAction.clone());
 		} else {
 			computeScore();
+			if (this.score == 232) {
+				System.err.println("FATHERS ; " + this.fathersActions);
+			}
+			this.bestActions = new LinkedList<>();
 		}
 		//System.err.println("NBTURN : " + nbTurn);
 		return score;
 	}
 
-	public Action getFirstAction() {
+//	public Action getFirstAction() {
+//		Action firstAct = null;
+//		int scoreMax = 0;
+//		for (Action action : actions) {
+//			Game game = this.clone();
+//			int score = game.simulateAction(action);
+//			if (score > scoreMax) {
+//				scoreMax = score;
+//				firstAct = action;
+//			}
+//		}
+//		score = scoreMax;
+//		return firstAct;
+//	}
+	
+	public LinkedList<Action> getListOfActions() {
 		Action firstAct = null;
-		int scoreMax = 0;
+		LinkedList<Action> bestSonActions = null;
+		int scoreMax = -1;
+		this.fathersActions = new LinkedList<>();
 		for (Action action : actions) {
 			Game game = this.clone();
 			int score = game.simulateAction(action);
 			if (score > scoreMax) {
 				scoreMax = score;
 				firstAct = action;
+				bestSonActions = game.bestActions;
 			}
 		}
+		this.bestActions = bestSonActions;
+		this.bestActions.addFirst(firstAct);
 		score = scoreMax;
-		return firstAct;
+		return this.bestActions;
 	}
 
 	private void enemiesAction() {
@@ -392,8 +485,6 @@ class Game {
 			if (e.getValue().life <= 0) {
 				//System.err.println("Dead enemy : " + e.getValue().id);
 				iterator.remove();
-				//TODO TRY TO COUNT THE NUMBER OF DEAD ENEMY
-				score += 10;
 			}
 		}
 	}
@@ -412,8 +503,11 @@ class Game {
 		if  (player.pos.x == -1 && player.pos.y == -1) {
 			this.status = Status.DEAD;
 		}
-		if (enemies.isEmpty() || datas.isEmpty()) {
+		if (datas.isEmpty()) {
 			this.status = Status.FAILURE;
+		}
+		if (enemies.isEmpty()) {
+			this.status = Status.FINISHED;
 		}
 	}
 	
@@ -421,6 +515,7 @@ class Game {
 		if (this.status.equals(Status.DEAD)) {
 			score = 0;
 		} else {
+			score += (nbTotalEnemies - enemies.size()) * 10;
 			score += datas.size() * 100;
 			int bonusPoints = datas.size() * Math.max(0, (totalEnemyLifePoints - 3 * player.nbShot)) * 3;
 			score += bonusPoints;
@@ -476,6 +571,20 @@ class Utils {
 		//System.err.println("deepCopyEnemy time : " + elasped);
 		return copy;
 	}
+	
+	public static LinkedList<Action> deepCopyActions(LinkedList<Action> list) {
+		long start = System.currentTimeMillis();
+		LinkedList<Action> copy = new LinkedList<>();
+		for (Action a : list) {
+			copy.add(a.clone());
+		}
+		long end = System.currentTimeMillis();
+		long elasped = end - start;
+		Player.listCopyTime += elasped;
+		//System.err.println("deepCopyEnemy time : " + elasped);
+		return copy;
+	}
+
 }
 
 
@@ -486,13 +595,22 @@ enum Status {
 	FINISHED;
 }
 
-class Action {}
+class Action {
+	
+	public Action clone() {
+		return null;
+	}
+}
 
 class Move extends Action {
 	Position destination;
 	
 	public Move() {
 		super();
+	}
+
+	public Move(Position dest) {
+		this.destination = new Position(dest.x, dest.y);
 	}
 
 	public Position getDestination(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
@@ -502,6 +620,23 @@ class Move extends Action {
 	@Override
 	public String toString() {
 		return "MOVE " + destination.x + " " + destination.y;
+	}
+	
+	@Override
+	public Move clone() {
+		return new Move(destination);
+	}
+}
+
+class MoveToFixedPos extends Move {
+	
+	public MoveToFixedPos() {
+		super();
+	}
+	
+	@Override
+	public Position getDestination(Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
+		return new Position(5000, 2500);
 	}
 }
 
@@ -528,6 +663,10 @@ class Shoot extends Action {
 		super();
 	}
 	
+	public Shoot(int targetId) {
+		this.targetId = targetId;
+	}
+
 	public Enemy getTarget(Map<Integer, Data> datas, Map<Integer, Enemy> enemies){
 		return null;
 	};
@@ -535,6 +674,11 @@ class Shoot extends Action {
 	@Override
 	public String toString() {
 		return "SHOOT " + targetId;
+	}
+	
+	@Override
+	public Shoot clone() {
+		return new Shoot(targetId);
 	}
 }
 
@@ -554,7 +698,7 @@ class ShootClosestEnemyFromData extends Shoot{
 				target = e;
 			}
 		}
-		targetId = target != null ? target.id : 0;
+		this.targetId = target.id;
 		return target;
 	}
 }

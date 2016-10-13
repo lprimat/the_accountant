@@ -353,5 +353,39 @@ public class PlayerTest {
 	    assertEquals("SHOOT 4", actionsList.get(0).toString());
 	    assertEquals("SHOOT 1", actionsList.get(1).toString());
 	    System.err.println("Time : " + elasped);
-	}	
+	}
+	
+	@Test
+	public void debug_test() {
+		//Pincer Move Turn 2
+		//with actions.add(0, new MoveToSafestPosition()); 
+		Joueur player = new Joueur(8000, 5000);
+		Map<Integer, Data> datas = new HashMap<>();
+		datas.put(0, new Data(0, 0, 4000));
+		datas.put(1, new Data(1, 14400, 3800));
+		datas.put(2, new Data(2, 8000, 6000));
+		
+		Map<Integer, Enemy> enemies = new HashMap<>();
+		enemies.put(0, new Enemy(0, 4912, 3882, 10, datas.values()));
+		enemies.put(1, new Enemy(1, 4826, 5480, 10, datas.values()));
+		enemies.put(2, new Enemy(2, 4972, 7037, 10, datas.values()));
+		enemies.put(3, new Enemy(3, 10294, 3934, 10, datas.values()));
+		enemies.put(4, new Enemy(4, 10178, 5509, 10, datas.values()));
+		enemies.put(5, new Enemy(5, 10210, 6994, 10, datas.values()));
+		enemies.put(6, new Enemy(6, 14047, 7502, 10, datas.values()));
+		
+		List<Action> actions = new ArrayList<>();
+		actions.add(new MoveToSafestPosition());
+		actions.add(new MoveToDataInDanger());
+		actions.add(new ShootClosestEnemyFromData());
+		
+		long start = System.currentTimeMillis();
+		Game game = new Game(player, datas, enemies, actions, 940);
+		LinkedList<Action> actionsList = game.getListOfActions();
+		int score = game.score;
+		long end = System.currentTimeMillis();
+	    long elasped = end - start;
+	    
+	    System.err.println("Time : " + elasped);
+	}
 }

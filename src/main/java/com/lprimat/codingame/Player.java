@@ -1,7 +1,6 @@
 package com.lprimat.codingame;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -16,6 +15,7 @@ class Player {
 	static LinkedList<Action> actions = new LinkedList<>();
 	public static long listCopyTime;
 	public static long beginTime;
+	public static long GetSafePosTime;
 
     public static void main(String args[]) {
     	//String input = "5000;1000;2;0;950;7000;1;8000;7100;2;0;3100;8000;10;1;14500;8100;10";
@@ -28,16 +28,16 @@ class Player {
     	while (true) {
         	if (gameTurn == 0) {
 	            game = playTurn(in, gameTurn);
-			} else if (gameTurn < game.bestActions.size()){
+			} else if (game != null && gameTurn < game.bestActions.size()){
         		int x = in.nextInt();
         		int y = in.nextInt();
-        		System.err.println(x + ", " + y);
+        		//System.err.println(x + ", " + y);
         		int dataCount = in.nextInt();
         		for (int i = 0; i < dataCount; i++) {
         		    int dataId = in.nextInt();
         		    int dataX = in.nextInt();
         		    int dataY = in.nextInt();
-        		    System.err.println("datas.put(" + dataId + ", new Data(" + dataId + ", " + dataX + ", " + dataY +"));");
+        		    //System.err.println("datas.put(" + dataId + ", new Data(" + dataId + ", " + dataX + ", " + dataY +"));");
         		}
         		int enemyCount = in.nextInt();
         		for (int i = 0; i < enemyCount; i++) {
@@ -45,8 +45,8 @@ class Player {
         		    int enemyX = in.nextInt();
         		    int enemyY = in.nextInt();
         		    int enemyLife = in.nextInt();
-        		    System.err.println("enemies.put(" + enemyId + ", new Enemy(" + 
-        		    enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife +", datas.values());");
+        		    //System.err.println("enemies.put(" + enemyId + ", new Enemy(" + 
+        		    //enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife +", datas.values());");
         		}
                 System.err.println("Game turn :" + gameTurn);
 				System.out.println(game.bestActions.get(gameTurn).toString());
@@ -59,8 +59,11 @@ class Player {
     }
 
 	private static Game playTurn(Scanner in, int gameTurn) {
-		Game game;
+		Game game = null;
+		List<Action> actionsToDo = null;
+		int score = 0;
 		int x = in.nextInt();
+		long bstart = System.currentTimeMillis();
 		int y = in.nextInt();
 		Joueur player = new Joueur(x, y);
 		//System.err.println(x + ", " + y);
@@ -83,28 +86,72 @@ class Player {
 		    //System.err.println(enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife);
 		    enemies.put(i, new Enemy(enemyId, enemyX, enemyY, enemyLife, datas.values()));
 		}
+		long bend = System.currentTimeMillis();
+		long belasped = bend - bstart;
+		System.err.println("Init duration :" + belasped);
 		
-		player.target = enemies.get(0);
 		List<Action> actions = new ArrayList<>();
-	    actions.add(new MoveToDataInDanger());
+		actions.add(new MoveToDataInDanger());
 		actions.add(new ShootClosestEnemyFromData());
-		if (enemies.size() < 30 && datas.size() < 30) {
-		    actions.add(new MoveToSafestPosition());
-		}
-		
 		long start = System.currentTimeMillis();
-		//Player.beginTime = start;
-		game = new Game(player, datas, enemies, actions);
-		List<Action> actionsToDo =  game.getListOfActions();
-		Action action = actionsToDo.get(gameTurn);
+		Game game1 = new Game(player, datas, enemies, actions, 200);
+		List<Action> actionsToDo1 =  game1.getListOfActions();
+		int estimatedScore1 = game1.score;
 		long end = System.currentTimeMillis();
 		long elasped = end - start;
+		System.err.println("Time for 1st simu : " + elasped);
+		System.err.println("Estimated Score : " + estimatedScore1);
+		
+		actions = new ArrayList<>();
+		actions.add(new ShootClosestEnemyFromData());
+	    actions.add(new MoveToDataInDanger());
+		start = System.currentTimeMillis();
+		Game game2 = new Game(player, datas, enemies, actions, 200);
+		List<Action> actionsToDo2 =  game2.getListOfActions();
+		int estimatedScore2 = game2.score;
+		end = System.currentTimeMillis();
+		elasped = end - start;
+		System.err.println("Time for 2st simu : " + elasped);
+		System.err.println("Estimated Score : " + estimatedScore2);
+		elasped = end - bstart;
+		
+		if (estimatedScore1 > estimatedScore2) {
+			actionsToDo = actionsToDo1;
+			score = estimatedScore1;
+			game = game1;
+		} else {
+			actionsToDo = actionsToDo2;
+			score = estimatedScore2;
+			game = game2;
+		}
+		
+		if (elasped < 500) {
+			// to debug : actions.add(0, new MoveToSafestPosition()); 
+			actions.add(1,new MoveToSafestPosition()); 
+			start = System.currentTimeMillis();
+			Game alternateGame = new Game(player, datas, enemies, actions, 950 - elasped);
+			List<Action> alternateActionsToDo =  alternateGame.getListOfActions();
+			end = System.currentTimeMillis();
+			elasped = end - start;
+			System.err.println("Time alternate simu : " + elasped);
+			System.err.println("Estimated Score : " + alternateGame.score);
+			
+			if (alternateGame.score > score) {
+				game = alternateGame;
+				actionsToDo = alternateActionsToDo;
+				score = alternateGame.score;
+			}
+		}
 		System.err.println("DeepCopy time : " + deepCopyGlobalTime);
 		System.err.println("HashCopy time : " + hashCopyTime);
-		System.err.println("Time : " + elasped);
-		System.err.println("Estimated Score : " + game.score);
 		System.err.println("Actions list size : " + actionsToDo.size());
-		System.out.println(action.toString());
+		System.out.println(actionsToDo.get(gameTurn).toString());
+//		} else {
+//			game = null;
+//			Shoot s = new ShootClosestEnemyFromData();
+//			s.getTarget(datas, enemies);
+//			System.out.println(s.toString());
+//		}
 		return game;
 	}
 }
@@ -314,72 +361,60 @@ class Game {
 	
 	static final int MAX_WIDTH = 16000;
 	static final int MAX_HEIGHT = 9000;
-	private static final long MAX_CALCULATION_TIME = 950;
+	private static long MAX_TIMEOUT = 950;
 	
-	
-	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
-		super();
-		Player.beginTime = System.currentTimeMillis();
+	private void initCommonGameAttributes(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
 		this.player = player;
 		this.datas = datas;
 		this.enemies = enemies;
 		this.status = Status.ONGOING;
+		this.score = 0;		
+	}
+
+	private void initVariablesGameAttributes(Map<Integer, Enemy> enemies) {
 		this.nbTotalEnemies = enemies.size();
 		this.totalEnemyLifePoints = getTotalEnemyLifePoints();
-		this.score = 0;
 		this.nbTurn = 0;
+	}
+	
+	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
+		super();
+		Player.beginTime = System.currentTimeMillis();
+		initCommonGameAttributes(player, datas, enemies);
+		initVariablesGameAttributes(enemies);
 	}
 	
 	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies, List<Action> actions) {
 		super();
 		Player.beginTime = System.currentTimeMillis();
-		this.player = player;
-		this.datas = datas;
-		this.enemies = enemies;
-		this.status = Status.ONGOING;
+		initCommonGameAttributes(player, datas, enemies);
+		initVariablesGameAttributes(enemies);
 		this.actions = actions;
-		this.nbTotalEnemies = enemies.size();
-		this.totalEnemyLifePoints = getTotalEnemyLifePoints();
-		this.score = 0;
-		this.nbTurn = 0;
 	}
 	
-	public Game(int nbTurn, int nbTotalEnemies, int totalEnemyLifePoints, Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies, List<Action> actions) {
-		super();
-		this.player = player;
-		this.datas = datas;
-		this.enemies = enemies;
-		this.status = Status.ONGOING;
-		this.totalEnemyLifePoints = totalEnemyLifePoints;
-		this.nbTotalEnemies = nbTotalEnemies;
-		this.score = 0;
-		this.nbTurn = nbTurn;
-		this.actions = actions;
-	}
 	
 	public Game(int nbTurn, int nbTotalEnemies, int totalEnemyLifePoints, Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies, List<Action> actions, LinkedList<Action> copyFatherActions) {
 		super();
-		this.player = player;
-		this.datas = datas;
-		this.enemies = enemies;
-		this.status = Status.ONGOING;
+		initCommonGameAttributes(player, datas, enemies);
 		this.totalEnemyLifePoints = totalEnemyLifePoints;
 		this.nbTotalEnemies = nbTotalEnemies;
-		this.score = 0;
 		this.nbTurn = nbTurn;
 		this.actions = actions;
 		this.fathersActions = copyFatherActions;
 	}
 	
+	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies, List<Action> actions, long remainingTime) {
+		super();
+		Player.beginTime = System.currentTimeMillis();
+		MAX_TIMEOUT = remainingTime;
+		initCommonGameAttributes(player, datas, enemies);
+		initVariablesGameAttributes(enemies);
+		this.actions = actions;
+	}
+
 	public Game clone() {
 		Map<Integer, Enemy> enemiesClone = Utils.deepCopyEnemy(this.enemies);
-		//long start = System.currentTimeMillis();
-		//Map<Integer, Data> dataClone = new HashMap<>(this.datas);
-		//long end = System.currentTimeMillis();
-		//long elasped = end - start;
-		//Player.hashCopyTime += elasped;
 		Map<Integer, Data> dataClone = Utils.deepCopyData(this.datas);
-		//return new Game(this.nbTurn, this.nbTotalEnemies, this.totalEnemyLifePoints, player.clone(), dataClone, enemiesClone, this.actions);
 		LinkedList<Action> copyFatherActions = Utils.deepCopyActions(fathersActions);
 		return new Game(this.nbTurn, this.nbTotalEnemies, this.totalEnemyLifePoints, player.clone(), dataClone, enemiesClone, this.actions, copyFatherActions);
 	}
@@ -418,7 +453,7 @@ class Game {
 		updateStatus();
 		nbTurn++;
 		
-		if (System.currentTimeMillis() - Player.beginTime > Game.MAX_CALCULATION_TIME) {
+		if (System.currentTimeMillis() - Player.beginTime > Game.MAX_TIMEOUT) {
 			this.bestActions = new LinkedList<>();
 			return (nbTotalEnemies - enemies.size()) * 10;
 		}
@@ -435,7 +470,7 @@ class Game {
 					bestSonActions = game.bestActions;
 				}
 			}
-			this.bestActions = Utils.deepCopyActions(bestSonActions);
+			this.bestActions = bestSonActions;
 			this.bestActions.addFirst(bestAction);
 		} else {
 			computeScore();
@@ -703,10 +738,15 @@ class MoveToSafestPosition extends Move {
 		List<Position> positionsFromRange = getAllPositionFromRange(game.player.pos, Joueur.MOVE_RANGE);
 		Collection<Enemy> enemis = game.enemies.values();
 		Position move = null;
+		List<Enemy> dangerousEnemies = getDangerousEnemies(game.player.pos, enemis);
 		for (Position position : positionsFromRange) {
-			if (isSafePositionFromEnemis(position, enemis)) {
+			long start = System.currentTimeMillis();
+			if (isSafePositionFromEnemis(position, dangerousEnemies)) {
 					move = position;
 				}
+			long end = System.currentTimeMillis();
+			long elasped = end - start;
+			Player.GetSafePosTime += elasped;
 		}
 		if (move == null) {
 			move = game.player.pos;
@@ -715,6 +755,17 @@ class MoveToSafestPosition extends Move {
 		return move;
 	}
 	
+	private List<Enemy> getDangerousEnemies(Position playerPos, Collection<Enemy> enemis) {
+		List<Enemy> dangerousEnemies = new ArrayList<>();
+		for (Enemy e : enemis) {
+			if ((Math.abs(playerPos.x - e.pos.x) <= Joueur.SAFE_RANGE + Joueur.MOVE_RANGE) && 
+				(Math.abs(playerPos.y - e.pos.y) <= Joueur.SAFE_RANGE + Joueur.MOVE_RANGE)) {
+				dangerousEnemies.add(e);
+			}
+		}	
+		return dangerousEnemies;
+	}
+
 	private static Boolean isSafePositionFromEnemis(Position myPos, Collection<Enemy> enemis) {
 		for (Enemy e : enemis) {
 			double dist = Utils.getDist(myPos, e.pos);
@@ -728,7 +779,7 @@ class MoveToSafestPosition extends Move {
 	private List<Position> getAllPositionFromRange(Position myPos, int moveRange) {
 			List<Position> posFromRange = new ArrayList<>();
 			for (int i = 500; i <= moveRange; i += 500) {
-				for (int angle = 0; angle <= 360; angle+= 36) {
+				for (int angle = 0; angle < 360; angle+= 36) {
 					int x = getXFromPolarCoordinate(myPos, i, angle);
 					int y = getYFromPolarCoordinate(myPos, i, angle);
 					if (x >= 0 && x < Game.MAX_WIDTH && y >= 0 && y <= Game.MAX_HEIGHT) {

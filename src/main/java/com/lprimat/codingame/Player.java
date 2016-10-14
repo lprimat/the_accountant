@@ -24,96 +24,83 @@ class Player {
 
         // game loop
     	int gameTurn = 0;
+    	boolean firstTurn = true;
+    	int timeoutMax = 1000;
     	Game game = null;
     	while (true) {
-        	if (gameTurn == 0) {
-	            game = playTurn(in, gameTurn);
-			} else if (game != null && gameTurn < game.bestActions.size()){
-        		int x = in.nextInt();
-        		int y = in.nextInt();
-        		//System.err.println(x + ", " + y);
-        		int dataCount = in.nextInt();
-        		for (int i = 0; i < dataCount; i++) {
-        		    int dataId = in.nextInt();
-        		    int dataX = in.nextInt();
-        		    int dataY = in.nextInt();
-        		    //System.err.println("datas.put(" + dataId + ", new Data(" + dataId + ", " + dataX + ", " + dataY +"));");
-        		}
-        		int enemyCount = in.nextInt();
-        		for (int i = 0; i < enemyCount; i++) {
-        		    int enemyId = in.nextInt();
-        		    int enemyX = in.nextInt();
-        		    int enemyY = in.nextInt();
-        		    int enemyLife = in.nextInt();
-        		    //System.err.println("enemies.put(" + enemyId + ", new Enemy(" + 
-        		    //enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife +", datas.values());");
-        		}
-                System.err.println("Game turn :" + gameTurn);
-				System.out.println(game.bestActions.get(gameTurn).toString());
-			} else {
-				gameTurn = 0;
-				game = playTurn(in, gameTurn);
-			}
+    		//Init Game
+    		int x = in.nextInt();
+    		long startTime = System.currentTimeMillis();
+    		int y = in.nextInt();
+    		Joueur player = new Joueur(x, y);
+    		//System.err.println(x + ", " + y);
+    		Map<Integer, Data> datas = new HashMap<>();
+    		int dataCount = in.nextInt();
+    		for (int i = 0; i < dataCount; i++) {
+    		    int dataId = in.nextInt();
+    		    int dataX = in.nextInt();
+    		    int dataY = in.nextInt();
+    		    datas.put(i, new Data(dataId, dataX, dataY));
+    		    //System.err.println("datas.put(" + dataId + ", new Data(" + dataId + ", " + dataX + ", " + dataY +"));");
+    		}
+    		Map<Integer, Enemy> enemies = new HashMap<>();
+    		int enemyCount = in.nextInt();
+    		for (int i = 0; i < enemyCount; i++) {
+    		    int enemyId = in.nextInt();
+    		    int enemyX = in.nextInt();
+    		    int enemyY = in.nextInt();
+    		    int enemyLife = in.nextInt();
+    		    //System.err.println("enemies.put(" + enemyId + ", new Enemy(" + 
+    		    //enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife +", datas.values());");
+    		    enemies.put(i, new Enemy(enemyId, enemyX, enemyY, enemyLife, datas.values()));
+    		}
+    		
+    		//TODO Save previous shot and death to be able to simulumate a correct score
+    		//Idea just save the number of shot, total enemy life and number of dead enemies
+    		if (firstTurn) {
+    			game = generateGame(startTime, timeoutMax, player, datas, enemies);
+    			firstTurn = false;
+    		} 
+    		
+    		System.out.println(game.bestActions.get(gameTurn).toString());
         	gameTurn++;
         }
     }
 
-	private static Game playTurn(Scanner in, int gameTurn) {
-		Game game = null;
-		List<Action> actionsToDo = null;
-		int score = 0;
-		int x = in.nextInt();
-		long bstart = System.currentTimeMillis();
-		int y = in.nextInt();
-		Joueur player = new Joueur(x, y);
-		//System.err.println(x + ", " + y);
-		Map<Integer, Data> datas = new HashMap<>();
-		int dataCount = in.nextInt();
-		for (int i = 0; i < dataCount; i++) {
-		    int dataId = in.nextInt();
-		    int dataX = in.nextInt();
-		    int dataY = in.nextInt();
-		    //System.err.println(dataId + ", " + dataX + ", " + dataY);
-		    datas.put(i, new Data(dataId, dataX, dataY));
-		}
-		Map<Integer, Enemy> enemies = new HashMap<>();
-		int enemyCount = in.nextInt();
-		for (int i = 0; i < enemyCount; i++) {
-		    int enemyId = in.nextInt();
-		    int enemyX = in.nextInt();
-		    int enemyY = in.nextInt();
-		    int enemyLife = in.nextInt();
-		    //System.err.println(enemyId + ", " + enemyX + ", " + enemyY + ", " + enemyLife);
-		    enemies.put(i, new Enemy(enemyId, enemyX, enemyY, enemyLife, datas.values()));
-		}
-		long bend = System.currentTimeMillis();
-		long belasped = bend - bstart;
-		System.err.println("Init duration :" + belasped);
-		
+	private static Game generateGame(long startTime, int timeoutMax, Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
+		Game game;
+		List<Action> actionsToDo;
+		int score;
+		int totalTurnSimulated;
 		List<Action> actions = new ArrayList<>();
 		actions.add(new MoveToDataInDanger());
 		actions.add(new ShootClosestEnemyFromData());
 		long start = System.currentTimeMillis();
-		Game game1 = new Game(player, datas, enemies, actions, 200);
+		Game game1 = new Game(player, datas, enemies, actions, 300);
 		List<Action> actionsToDo1 =  game1.getListOfActions();
 		int estimatedScore1 = game1.score;
 		long end = System.currentTimeMillis();
 		long elasped = end - start;
 		System.err.println("Time for 1st simu : " + elasped);
 		System.err.println("Estimated Score : " + estimatedScore1);
+		System.err.println("Number of simulated turn :" + Game.nbTurn);
+		totalTurnSimulated = Game.nbTurn;
 		
 		actions = new ArrayList<>();
 		actions.add(new ShootClosestEnemyFromData());
 	    actions.add(new MoveToDataInDanger());
 		start = System.currentTimeMillis();
-		Game game2 = new Game(player, datas, enemies, actions, 200);
+		Game game2 = new Game(player, datas, enemies, actions, 300);
 		List<Action> actionsToDo2 =  game2.getListOfActions();
 		int estimatedScore2 = game2.score;
 		end = System.currentTimeMillis();
 		elasped = end - start;
 		System.err.println("Time for 2st simu : " + elasped);
 		System.err.println("Estimated Score : " + estimatedScore2);
-		elasped = end - bstart;
+		System.err.println("Number of simulated turn :" + (Game.nbTurn - totalTurnSimulated));
+		totalTurnSimulated =  Game.nbTurn;
+		elasped = end - startTime;
+		
 		
 		if (estimatedScore1 > estimatedScore2) {
 			actionsToDo = actionsToDo1;
@@ -125,33 +112,27 @@ class Player {
 			game = game2;
 		}
 		
-		if (elasped < 500) {
-			// to debug : actions.add(0, new MoveToSafestPosition()); 
-			actions.add(1,new MoveToSafestPosition()); 
-			start = System.currentTimeMillis();
-			Game alternateGame = new Game(player, datas, enemies, actions, 950 - elasped);
-			List<Action> alternateActionsToDo =  alternateGame.getListOfActions();
-			end = System.currentTimeMillis();
-			elasped = end - start;
-			System.err.println("Time alternate simu : " + elasped);
-			System.err.println("Estimated Score : " + alternateGame.score);
-			
-			if (alternateGame.score > score) {
-				game = alternateGame;
-				actionsToDo = alternateActionsToDo;
-				score = alternateGame.score;
-			}
+		// to debug : actions.add(0, new MoveToSafestPosition()); 
+		actions.add(1,new MoveToSafestPosition()); 
+		start = System.currentTimeMillis();
+		Game alternateGame = new Game(player, datas, enemies, actions, timeoutMax - elasped - enemies.size() - datas.size());
+		List<Action> alternateActionsToDo =  alternateGame.getListOfActions();
+		end = System.currentTimeMillis();
+		elasped = end - start;
+		System.err.println("Time alternate simu : " + elasped);
+		System.err.println("Estimated Score : " + alternateGame.score);
+		System.err.println("Number of simulated turn :" + (Game.nbTurn - totalTurnSimulated));
+		totalTurnSimulated = Game.nbTurn;
+		
+		if (alternateGame.score > score) {
+			game = alternateGame;
+			actionsToDo = alternateActionsToDo;
+			score = alternateGame.score;
 		}
 		System.err.println("DeepCopy time : " + deepCopyGlobalTime);
 		System.err.println("HashCopy time : " + hashCopyTime);
 		System.err.println("Actions list size : " + actionsToDo.size());
-		System.out.println(actionsToDo.get(gameTurn).toString());
-//		} else {
-//			game = null;
-//			Shoot s = new ShootClosestEnemyFromData();
-//			s.getTarget(datas, enemies);
-//			System.out.println(s.toString());
-//		}
+		System.err.println("Number of Total simulated turn :" + totalTurnSimulated);
 		return game;
 	}
 }
@@ -352,7 +333,6 @@ class Game {
 	int score;
 	Status status;
 	int totalEnemyLifePoints;
-	int nbTurn;
 	int nbTotalEnemies;
 	List<Action> actions;
 	LinkedList<Action> bestActions;
@@ -362,19 +342,19 @@ class Game {
 	static final int MAX_WIDTH = 16000;
 	static final int MAX_HEIGHT = 9000;
 	private static long MAX_TIMEOUT = 950;
+	static int nbTurn = 0;
 	
 	private void initCommonGameAttributes(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
 		this.player = player;
 		this.datas = datas;
 		this.enemies = enemies;
 		this.status = Status.ONGOING;
-		this.score = 0;		
+		this.score = 0;
 	}
 
 	private void initVariablesGameAttributes(Map<Integer, Enemy> enemies) {
 		this.nbTotalEnemies = enemies.size();
 		this.totalEnemyLifePoints = getTotalEnemyLifePoints();
-		this.nbTurn = 0;
 	}
 	
 	public Game(Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies) {
@@ -393,12 +373,11 @@ class Game {
 	}
 	
 	
-	public Game(int nbTurn, int nbTotalEnemies, int totalEnemyLifePoints, Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies, List<Action> actions, LinkedList<Action> copyFatherActions) {
+	public Game(int nbTotalEnemies, int totalEnemyLifePoints, Joueur player, Map<Integer, Data> datas, Map<Integer, Enemy> enemies, List<Action> actions, LinkedList<Action> copyFatherActions) {
 		super();
 		initCommonGameAttributes(player, datas, enemies);
 		this.totalEnemyLifePoints = totalEnemyLifePoints;
 		this.nbTotalEnemies = nbTotalEnemies;
-		this.nbTurn = nbTurn;
 		this.actions = actions;
 		this.fathersActions = copyFatherActions;
 	}
@@ -416,7 +395,7 @@ class Game {
 		Map<Integer, Enemy> enemiesClone = Utils.deepCopyEnemy(this.enemies);
 		Map<Integer, Data> dataClone = Utils.deepCopyData(this.datas);
 		LinkedList<Action> copyFatherActions = Utils.deepCopyActions(fathersActions);
-		return new Game(this.nbTurn, this.nbTotalEnemies, this.totalEnemyLifePoints, player.clone(), dataClone, enemiesClone, this.actions, copyFatherActions);
+		return new Game(this.nbTotalEnemies, this.totalEnemyLifePoints, player.clone(), dataClone, enemiesClone, this.actions, copyFatherActions);
 	}
 
 	private int getTotalEnemyLifePoints() {
@@ -434,7 +413,7 @@ class Game {
 		removeDeadEnemy();
 		collectDatas();
 		updateStatus();
-		nbTurn++;
+		Game.nbTurn++;
 		
 		if (!status.equals(Status.ONGOING)) {
 			computeScore();
@@ -451,7 +430,7 @@ class Game {
 		removeDeadEnemy();
 		collectDatas();
 		updateStatus();
-		nbTurn++;
+		Game.nbTurn++;
 		
 		if (System.currentTimeMillis() - Player.beginTime > Game.MAX_TIMEOUT) {
 			this.bestActions = new LinkedList<>();

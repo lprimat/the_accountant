@@ -19,7 +19,8 @@ public class PlayerTest {
 	public void init() {
 		datas = new ArrayList<>();
 		datas.add(new Data(0,950,7000));
-		datas.add(new Data(1,8000,7100));		
+		datas.add(new Data(1,8000,7100));
+		Player.cosSinTable = new CosSinTable();
 	}
 	
 	@Test
